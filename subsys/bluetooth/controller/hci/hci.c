@@ -57,6 +57,12 @@
 #include "common/log.h"
 #include "hal/debug.h"
 
+#if defined(CONFIG_SOC_FAMILY_TISIMPLELINK)
+#include <inc/hw_ccfg.h>
+#include <inc/hw_fcfg1.h>
+#include <inc/hw_memmap.h>
+#endif
+
 /* opcode of the HCI command currently being processed. The opcode is stored
  * by hci_cmd_handle() and then used during the creation of cmd complete and
  * cmd status events to avoid passing it up the call chain.
@@ -1978,6 +1984,36 @@ static void vs_read_static_addrs(struct net_buf *buf, struct net_buf **evt)
 		return;
 	}
 #endif /* CONFIG_SOC_FAMILY_NRF */
+
+#if defined(CONFIG_SOC_FAMILY_TISIMPLELINK)
+	/* Read address from cc13xx_cc26xx-specific storage */
+
+	u32_t *mac;
+
+	if (sys_read32(CCFG_BASE + CCFG_O_IEEE_BLE_0) != 0xFFFFFFFF &&
+	    sys_read32(CCFG_BASE + CCFG_O_IEEE_BLE_1) != 0xFFFFFFFF) {
+		mac = (u32_t *)(CCFG_BASE + CCFG_O_IEEE_BLE_0);
+	} else {
+		mac = (u32_t *)(FCFG1_BASE + FCFG1_O_MAC_BLE_0);
+	}
+
+	struct bt_hci_vs_static_addr *addr;
+
+	rp = hci_cmd_complete(evt, sizeof(*rp) + sizeof(*addr));
+	rp->status = 0x00;
+	rp->num_addrs = 1U;
+
+	addr = &rp->a[0];
+	sys_put_le32(mac[0], &addr->bdaddr.val[0]);
+	sys_put_le16((u16_t)mac[1], &addr->bdaddr.val[4]);
+
+	BT_ADDR_SET_STATIC(&addr->bdaddr);
+
+	/* Mark IR as invalid */
+	(void)memset(addr->ir, 0x00, sizeof(addr->ir));
+
+	return;
+#endif /* CONFIG_SOC_FAMILY_TISIMPLELINK */
 
 	rp = hci_cmd_complete(evt, sizeof(*rp));
 	rp->status = 0x00;

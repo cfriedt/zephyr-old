@@ -147,6 +147,14 @@ config BT_LLL_VENDOR_OPENISA
 	help
 	  Use OpenISA Lower Link Layer implementation.
 
+config BT_LLL_VENDOR_TI
+	bool "Use Texas Instruments LLL"
+	depends on BT_LL_SW_SPLIT && SOC_FAMILY_TISIMPLELINK
+	select BT_HAS_HCI_VS
+	default y
+	help
+	  Use Texas Instruments Lower Link Layer implementation.
+
 comment "BLE Controller configuration"
 
 config BT_CTLR_CRYPTO
