@@ -49,6 +49,7 @@ struct FrequencyTableEntry {
 #include "hal/ticker.h"
 #include "hal/swi.h"
 
+#define BT_DBG_ENABLED 1
 #define LOG_MODULE_NAME bt_ctlr_hal_ti_radio
 #include "common/log.h"
 #include "hal/debug.h"
@@ -198,7 +199,6 @@ static s8_t rssi;
 
 static RF_Object rfObject;
 static RF_Handle rfHandle;
-static bool did_slave_setup;
 
 /* Overrides for CMD_BLE5_RADIO_SETUP */
 static u32_t pOverridesCommon[] = {
@@ -777,7 +777,7 @@ void isr_radio(void *arg)
 	rfc_bleRadioOp_t *op =
 		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
 
-	if (did_slave_setup) {
+	if (CMD_BLE_SLAVE == op->commandNo) {
 		BT_DBG("now: %u h: %p ch: %u (%s) e: %" PRIx64, cntr_cnt_get(),
 		       isr_radio_param->h, isr_radio_param->ch,
 		       command_no_to_string(op->commandNo), isr_radio_param->e);
@@ -786,7 +786,7 @@ void isr_radio(void *arg)
 	}
 
 	if (irq & RF_EventTxDone) {
-		isr_tmr_end = tmr - isr_latency;
+		//isr_tmr_end = tmr - isr_latency;
 		if (tmr_end_save) {
 			tmr_end = isr_tmr_end;
 		}
@@ -1249,9 +1249,6 @@ void radio_tx_enable(void)
 
 void radio_disable(void)
 {
-	if (did_slave_setup) {
-		BT_DBG("");
-	}
 	/*
 	 * 0b1011..Abort All - Cancels all pending events and abort any
 	 * sequence-in-progress
@@ -1442,7 +1439,8 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 
 		/* Ignore time out as well */
 		skip_hcto = 1;
-		return remainder;
+		remainder = 0;
+		//return remainder;
 	}
 
 	if (trx) {
@@ -1608,7 +1606,7 @@ void radio_tmr_end_capture(void)
 
 u32_t radio_tmr_end_get(void)
 {
-	return tmr_end - rtc_diff_start_us;
+	return tmr_end;
 }
 
 u32_t radio_tmr_tifs_base_get(void)
@@ -1703,6 +1701,8 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 {
 	bool once = false;
 	rfc_dataEntryPointer_t *it;
+	rfc_bleRadioOp_t *op =
+		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
 
 	crc_valid = false;
 
@@ -1743,12 +1743,14 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 				rtc_start = rtc_now -
 					RF_convertRatToRtc(rat_now - timestamp);
 
-				printk( "%s(): rat_now: %u rtc_now: %u timestamp: %u\n", __func__, rat_now, rtc_now, timestamp );
-
 				/* Add to AA time, PDU + CRC time */
-				isr_tmr_end = isr_tmr_aa +
+				isr_tmr_end = rtc_start +
 					HAL_TICKER_US_TO_TICKS(len +
 						sizeof(crc - 1));
+
+				if ( CMD_BLE_SLAVE == op->commandNo ) {
+					printk( "%s(): rat_now: %u rtc_now: %u timestamp: %u rtc_start: %u isr_tmr_end: %u\n", __func__, rat_now, rtc_now, timestamp, rtc_start, isr_tmr_end );
+				}
 
 				LL_ASSERT(rx_pkt_ptr != NULL);
 
@@ -1793,8 +1795,7 @@ void radio_set_scan_rsp_data(u8_t *data, u8_t len)
 
 void radio_set_up_slave_cmd(void)
 {
-	BT_DBG("");
-
+	BT_DBG("now: %u", cntr_cnt_get());
 	drv_data->cmd_ble_slave_param.accessAddress = drv_data->access_address;
 	drv_data->cmd_ble_slave_param.crcInit0 =
 		(drv_data->polynomial >> 0) & 0xff;
@@ -1805,17 +1806,6 @@ void radio_set_up_slave_cmd(void)
 
 	drv_data->cmd_ble_slave.channel = drv_data->chan;
 
-#if 1
 	next_radio_cmd = (rfc_bleRadioOp_t *)&drv_data->cmd_ble_slave;
 	drv_data->ignore_next_rx = false;
-#else
-	BT_DBG("submit %s now @ %u",
-	       command_no_to_string(drv_data->cmd_ble_slave.commandNo),
-	       cntr_cnt_get());
-
-	drv_data->active_command_handle =
-		RF_postCmd(rfHandle, (RF_Op *)&drv_data->cmd_ble_slave,
-			   RF_PriorityNormal, rf_callback, EVENT_MASK);
-#endif
-	did_slave_setup = true;
 }
