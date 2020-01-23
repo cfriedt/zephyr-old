@@ -469,7 +469,7 @@ static const RF_TxPowerTable_Entry RF_BLE_txPowerTable[] = {
 static void tmp_cb(void *param)
 {
 	u32_t t1 = *(u32_t *)param;
-	u32_t t2 = RF_convertRatTicksToUs(RF_getCurrentTime());
+	u32_t t2 = HAL_TICKER_TICKS_TO_US(cntr_cnt_get());
 
 	isr_latency = t2 - t1;
 	/* Mark as done */
@@ -485,7 +485,7 @@ static void get_isr_latency(void)
 	/* Reset TMR to zero */
 	/* (not necessary using the ISR_LATENCY_MAGIC approach) */
 
-	tmp = RF_convertRatTicksToUs(RF_getCurrentTime());
+	tmp = HAL_TICKER_TICKS_TO_US(cntr_cnt_get());
 
 	radio_disable();
 	while (tmp != ISR_LATENCY_MAGIC) {
@@ -772,7 +772,7 @@ void isr_radio(void *arg)
 	const struct isr_radio_param *const isr_radio_param =
 		(struct isr_radio_param *)arg;
 
-	u32_t tmr = RF_getCurrentTime();
+	u32_t tmr = cntr_cnt_get();
 	RF_EventMask irq = isr_radio_param->e;
 	rfc_bleRadioOp_t *op =
 		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
@@ -819,7 +819,7 @@ void isr_radio(void *arg)
 		/* Start Rx/Tx in TIFS */
 		next_radio_cmd->startTrigger.triggerType = TRIG_ABSTIME;
 		next_radio_cmd->startTrigger.pastTrig = true;
-		next_radio_cmd->startTime = RF_getCurrentTime();
+		next_radio_cmd->startTime = cntr_cnt_get();
 
 		drv_data->active_command_handle =
 			RF_postCmd(rfHandle, (RF_Op *)next_radio_cmd,
@@ -1423,7 +1423,6 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 {
 	rfc_bleRadioOp_t *radio_start_now_cmd = NULL;
 	u32_t now = cntr_cnt_get();
-	u32_t rfnow = RF_getCurrentTime();
 
 	/* Save it for later */
 	/* rtc_start = ticks_start; */
@@ -1497,7 +1496,7 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 		if (next_radio_cmd != NULL) {
 			/* enable T1_CMP to trigger the SEQCMD */
 			next_radio_cmd->startTime =
-				rfnow + RF_convertUsToRatTicks(remainder);
+				now + remainder;
 			next_radio_cmd->startTrigger.triggerType = TRIG_ABSTIME;
 			next_radio_cmd->startTrigger.pastTrig = true;
 			next_radio_cmd->channel = drv_data->chan;
@@ -1559,13 +1558,7 @@ void radio_tmr_hcto_configure(u32_t hcto)
 		return;
 	}
 
-	u32_t rtc_now = cntr_cnt_get();
-	u32_t rf_now = RF_getCurrentTime();
-	u32_t diff_rtc_ticks = hcto - rtc_now;
-
-	drv_data->rat_hcto_compare.timeout =
-		rf_now +
-		RF_convertUsToRatTicks(HAL_TICKER_TICKS_TO_US(diff_rtc_ticks));
+	drv_data->rat_hcto_compare.timeout = hcto;
 
 	/* 0b1001..RX Stop @ T2 Timer Compare Match (EVENT_TMR = T2_CMP) */
 	drv_data->rat_hcto_handle =
@@ -1675,28 +1668,6 @@ const PowerCC26X2_Config PowerCC26X2_config = {
 	.calibrateRCOSC_HF = false,
 };
 
-static u32_t RF_convertRatToRtc(u32_t rat)
-{
-
-#ifndef RF_SCALE_RTC_TO_4MHZ
-#define RF_SCALE_RTC_TO_4MHZ 4000000
-#endif
-
-	u64_t nCurrentTime = rat;
-	u8_t carry = 0;
-
-	nCurrentTime <<= 32;
-	/* nCurrentTime -= ((u64_t)RF_ratSyncCmd.start.rat0) << 32; */
-	nCurrentTime /= RF_SCALE_RTC_TO_4MHZ;
-	/* round up */
-
-	if ((nCurrentTime & 0xffff) >= 0x8000) {
-		carry = 1;
-	}
-	nCurrentTime >>= 16;
-	return (u32_t) nCurrentTime + carry;
-}
-
 static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 {
 	bool once = false;
@@ -1734,14 +1705,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 
 				crc_valid = true;
 
-				/* Ensure that the anchor is in the RTC clock
-				 * domain rather than the RAT clock domain
-				 */
-				u32_t rtc_now = AONRTCCurrentCompareValueGet();
-				u32_t rat_now = RF_getCurrentTime();
-
-				rtc_start = rtc_now -
-					RF_convertRatToRtc(rat_now - timestamp);
+				rtc_start = timestamp;
 
 				/* Add to AA time, PDU + CRC time */
 				isr_tmr_end = rtc_start +
@@ -1749,7 +1713,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 						sizeof(crc - 1));
 
 				if ( CMD_BLE_SLAVE == op->commandNo ) {
-					printk( "%s(): rat_now: %u rtc_now: %u timestamp: %u rtc_start: %u isr_tmr_end: %u\n", __func__, rat_now, rtc_now, timestamp, rtc_start, isr_tmr_end );
+					printk( "%s(): now: %u timestamp: %u isr_tmr_end: %u\n", __func__, cntr_cnt_get(), timestamp, isr_tmr_end );
 				}
 
 				LL_ASSERT(rx_pkt_ptr != NULL);

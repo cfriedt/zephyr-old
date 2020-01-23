@@ -61,16 +61,47 @@ u32_t cntr_stop(void)
 
 u32_t cntr_cnt_get(void)
 {
-	return AONRTCCurrentCompareValueGet();
+	return RF_getCurrentTime();
+}
+
+static u32_t RF_convertRatToRtc(u32_t rat)
+{
+
+#ifndef RF_SCALE_RTC_TO_4MHZ
+#define RF_SCALE_RTC_TO_4MHZ 4000000
+#endif
+
+	u64_t nCurrentTime = rat;
+	u8_t carry = 0;
+
+	nCurrentTime <<= 32;
+	nCurrentTime /= RF_SCALE_RTC_TO_4MHZ;
+
+	/* round up */
+	if ((nCurrentTime & 0xffff) >= 0x8000) {
+		carry = 1;
+	}
+
+	/* convert to RTC comparator format */
+	nCurrentTime >>= 16;
+
+	return (u32_t) nCurrentTime + carry;
 }
 
 void cntr_cmp_set(u8_t cmp, u32_t value)
 {
 	ARG_UNUSED(cmp);
 
+	u32_t now_rat = RF_getCurrentTime();
+	u32_t then_rat = value;
+	u32_t dt_rat = then_rat - now_rat;
+
+	u32_t now_rtc = AONRTCCurrentCompareValueGet();
+	u32_t then_rtc = now_rtc + RF_convertRatToRtc( dt_rat );
+
 	AONRTCChannelDisable(AON_RTC_CH1);
 	AONRTCEventClear(AON_RTC_CH1);
 	AONRTCModeCh1Set(AON_RTC_MODE_CH1_COMPARE);
-	AONRTCCompareValueSet(AON_RTC_CH1, value);
+	AONRTCCompareValueSet(AON_RTC_CH1, then_rtc);
 	AONRTCChannelEnable(AON_RTC_CH1);
 }
