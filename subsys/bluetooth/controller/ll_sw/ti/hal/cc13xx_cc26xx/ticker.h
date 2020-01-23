@@ -12,23 +12,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define HAL_TICKER_CNTR_CLK_FREQ_HZ 32768U
+#define DeviceFamily_CC13X2
+#include <ti/drivers/rf/RF.h>
 
-#define HAL_TICKER_CNTR_CMP_OFFSET_MIN 6
+#define HAL_TICKER_CNTR_CLK_FREQ_HZ 4000000U
+
+#define HAL_TICKER_CNTR_CMP_OFFSET_MIN RF_convertUsToRatTicks(64)
 
 #define HAL_TICKER_CNTR_SET_LATENCY 0
 
-#define HAL_TICKER_US_TO_TICKS(x)                                              \
-	(((u32_t)(((u64_t)(x)*1000000000UL) / 30517578125UL)) &                \
-	 HAL_TICKER_CNTR_MASK)
+#define HAL_TICKER_US_TO_TICKS(x) RF_convertUsToRatTicks(x)
 
-#define HAL_TICKER_REMAINDER(x)                                                \
-	((((u64_t)(x)*1000000000UL) -                                          \
-	  ((u64_t)HAL_TICKER_US_TO_TICKS(x) * 30517578125UL)) /                \
-	 1000UL)
+#define HAL_TICKER_REMAINDER(x) 0
 
-#define HAL_TICKER_TICKS_TO_US(x)                                              \
-	((u32_t)(((u64_t)(x)*30517578125UL) / 1000000000UL))
+#define HAL_TICKER_TICKS_TO_US(x) RF_convertRatTicksToUs(x)
 
 #define HAL_TICKER_CNTR_MSBIT 31
 
@@ -37,4 +34,4 @@
 /* Macro defining the remainder resolution/range
  * ~ 1000000 * HAL_TICKER_TICKS_TO_US(1)
  */
-#define HAL_TICKER_REMAINDER_RANGE HAL_TICKER_TICKS_TO_US(1000000)
+#define HAL_TICKER_REMAINDER_RANGE 1
