@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <sys/printk.h>
 #include <sys/dlist.h>
 #include <sys/mempool_base.h>
 #include <toolchain.h>
@@ -772,7 +771,6 @@ void isr_radio(void *arg)
 	const struct isr_radio_param *const isr_radio_param =
 		(struct isr_radio_param *)arg;
 
-	u32_t tmr = cntr_cnt_get();
 	RF_EventMask irq = isr_radio_param->e;
 	rfc_bleRadioOp_t *op =
 		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
@@ -786,7 +784,6 @@ void isr_radio(void *arg)
 	}
 
 	if (irq & RF_EventTxDone) {
-		//isr_tmr_end = tmr - isr_latency;
 		if (tmr_end_save) {
 			tmr_end = isr_tmr_end;
 		}
@@ -1005,6 +1002,7 @@ void radio_whiten_iv_set(u32_t iv)
 	 * 2400 + ch_num [MHz]. Therefore a compensation of
 	 * -2 MHz has been provided.
 	 */
+/*
 	LL_ASSERT(2 <= iv && iv <= 80);
 
 	struct FrequencyTableEntry *fte;
@@ -1013,6 +1011,7 @@ void radio_whiten_iv_set(u32_t iv)
 	fte = (struct FrequencyTableEntry *)&config_frequencyTable_ble[idx];
 
 	drv_data->whiten = fte->whitening;
+*/
 }
 
 void radio_aa_set(u8_t *aa)
@@ -1249,6 +1248,7 @@ void radio_tx_enable(void)
 
 void radio_disable(void)
 {
+	//BT_DBG("now: %u", cntr_cnt_get());
 	/*
 	 * 0b1011..Abort All - Cancels all pending events and abort any
 	 * sequence-in-progress
@@ -1492,6 +1492,9 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 		drv_data->active_command_handle =
 			RF_postCmd(rfHandle, (RF_Op *)radio_start_now_cmd,
 				   RF_PriorityNormal, rf_callback, EVENT_MASK);
+		BT_DBG("submit %s at %u",
+		       command_no_to_string(radio_start_now_cmd->commandNo),
+		       now);
 	} else {
 		if (next_radio_cmd != NULL) {
 			/* enable T1_CMP to trigger the SEQCMD */
@@ -1672,8 +1675,8 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 {
 	bool once = false;
 	rfc_dataEntryPointer_t *it;
-	rfc_bleRadioOp_t *op =
-		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
+//	rfc_bleRadioOp_t *op =
+//		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
 
 	crc_valid = false;
 
@@ -1712,8 +1715,31 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 					HAL_TICKER_US_TO_TICKS(len +
 						sizeof(crc - 1));
 
-				if ( CMD_BLE_SLAVE == op->commandNo ) {
-					printk( "%s(): now: %u timestamp: %u isr_tmr_end: %u\n", __func__, cntr_cnt_get(), timestamp, isr_tmr_end );
+				struct pdu_adv *pdu_rx = (struct pdu_adv *)data;
+				if ( PDU_ADV_TYPE_CONNECT_IND == pdu_rx->type ) {
+					u32_t now = cntr_cnt_get();
+					BT_DBG( "CONNECT_IND: now: %u timestamp: %u isr_tmr_end: %u",
+						now, timestamp, isr_tmr_end);
+					// 1.25 ms, constant value in the case of CONNECT_IND
+					const u32_t transmitWindowDelay = HAL_TICKER_US_TO_TICKS( 1250 );
+					const u32_t transmitWindowOffset = HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.win_offset * 1250 );
+					const u32_t transmitWindowSize = HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.win_size * 1250 );
+					u32_t transmitWindowStart =
+						0
+						+ isr_tmr_end
+						+ transmitWindowDelay
+						+ transmitWindowOffset
+						;
+					u32_t transmitWindowEnd =
+						0
+						+ transmitWindowStart
+						+ transmitWindowSize
+						;
+					BT_DBG( "TX Window: %u to %u [rat ticks] in %u us",
+						transmitWindowStart,
+						transmitWindowEnd,
+						HAL_TICKER_TICKS_TO_US(transmitWindowStart - now)
+					);
 				}
 
 				LL_ASSERT(rx_pkt_ptr != NULL);
@@ -1731,6 +1757,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 static void rat_deferred_hcto_callback(RF_Handle h, RF_RatHandle rh,
 				       RF_EventMask e, u32_t compareCaptureTime)
 {
+	BT_DBG("now: %u", cntr_cnt_get());
 	RF_cancelCmd(rfHandle, drv_data->active_command_handle,
 		     RF_ABORT_GRACEFULLY);
 	drv_data->active_command_handle = -1;
@@ -1767,6 +1794,11 @@ void radio_set_up_slave_cmd(void)
 		(drv_data->polynomial >> 8) & 0xff;
 	drv_data->cmd_ble_slave_param.crcInit2 =
 		(drv_data->polynomial >> 16) & 0xff;
+
+	// even if there is a crc error, the first received packet sets the anchor point
+	drv_data->cmd_ble_slave_param.rxConfig.bAutoFlushCrcErr = false;
+	// so that the radio does not mistake the received packet for an ACK or NACK
+	drv_data->cmd_ble_slave_param.seqStat.bFirstPkt = true;
 
 	drv_data->cmd_ble_slave.channel = drv_data->chan;
 
