@@ -32,6 +32,7 @@
 #include "lll_vendor.h"
 #include "lll_internal.h"
 
+#define BT_DBG_ENABLED 1
 #define LOG_MODULE_NAME bt_ctlr_llsw_ti_lll
 #include "common/log.h"
 
@@ -72,6 +73,8 @@ static void ticker_op_job_disable(u32_t status, void *op_context);
 void rtc0_cc13xx_cc26xx_isr(void *arg)
 {
 	extern void rtc_isr(void *param);
+
+	//BT_DBG("rtc_now: %u rat_now: %u", AONRTCCurrentCompareValueGet(), cntr_cnt_get());
 
 	if (AONRTCEventGet(AON_RTC_CH0)) {
 		rtc_isr(NULL);
