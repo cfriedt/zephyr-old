@@ -152,7 +152,7 @@ int lll_init(void)
 	hal_swi_init();
 
 	/* Connect ISRs */
-	/* Connected in the driver porting library under hal/ti */
+	/* LL_RADIO_IRQn connected in DPL under hal/ti */
 	IRQ_CONNECT(LL_RTC0_IRQn, CONFIG_BT_CTLR_ULL_HIGH_PRIO,
 		    rtc0_cc13xx_cc26xx_isr, NULL, 0);
 	IRQ_CONNECT(HAL_SWI_RADIO_IRQ, CONFIG_BT_CTLR_LLL_PRIO,
