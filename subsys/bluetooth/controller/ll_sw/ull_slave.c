@@ -68,8 +68,6 @@ void ull_slave_setup(memq_link_t *link, struct node_rx_hdr *rx,
 	u16_t interval;
 	u8_t chan_sel;
 
-	BT_DBG("");
-
 	((struct lll_adv *)ftr->param)->conn = NULL;
 
 	adv = ((struct lll_adv *)ftr->param)->hdr.parent;
@@ -272,12 +270,24 @@ void ull_slave_setup(memq_link_t *link, struct node_rx_hdr *rx,
 
 	/* Start Slave */
 	ticker_id_conn = TICKER_ID_CONN_BASE + ll_conn_handle_get(conn);
+
 #if 1
-	BT_DBG("ticks now: %u ticker_start(instance_index: %u, user_id: %u, ticker_id: %u, "
-	       "ticks_anchor: %u, ticks_first: %u, ticks_periodic: %u, "
-	       "remainder_periodic: %u, lazy: %u, ticks_slot: %u, "
-	       "fp_timeout_func: %p, context: %p, "
-	       "fp_op_func: %p, op_context: %p)",
+	BT_DBG("\nticks now: %u\n"
+			"ticker_start(\n\t"
+			"instance_index: %u\n\t"
+			"user_id: %u\n\t"
+			"ticker_id: %u\n\t"
+			"ticks_anchor: %u\n\t"
+			"ticks_first: %u\n\t"
+			"ticks_periodic: %u\n\t"
+	       "remainder_periodic: %u\n\t"
+			"lazy: %u\n\t"
+			"ticks_slot: %u\n\t"
+	       "fp_timeout_func: %p\n\t"
+			"context: %p\n\t"
+	       "fp_op_func: %p\n\t"
+			"op_context: %p\n"
+			")",
 	       cntr_cnt_get(), TICKER_INSTANCE_ID_CTLR, TICKER_USER_ID_ULL_HIGH,
 	       ticker_id_conn, ftr->ticks_anchor - ticks_slot_offset,
 	       HAL_TICKER_US_TO_TICKS(conn_offset_us),
