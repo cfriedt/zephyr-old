@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <zephyr/types.h>
 #include <sys/byteorder.h>
@@ -36,6 +37,7 @@
 #include "lll_adv_internal.h"
 #include "lll_prof_internal.h"
 
+#define BT_DBG_ENABLED 1
 #define LOG_MODULE_NAME bt_ctlr_llsw_ti_lll_adv
 #include "common/log.h"
 #include <soc.h>
@@ -284,7 +286,6 @@ static int is_abort_cb(void *next, int prio, void *curr,
 
 static void abort_cb(struct lll_prepare_param *prepare_param, void *param)
 {
-	BT_DBG("");
 	int err;
 
 	/* NOTE: This is not a prepare being cancelled */
@@ -309,7 +310,6 @@ static void abort_cb(struct lll_prepare_param *prepare_param, void *param)
 
 static void isr_tx(void *param)
 {
-	BT_DBG("");
 	u32_t hcto;
 
 	/* TODO: MOVE to a common interface, isr_lll_radio_status? */
@@ -389,8 +389,6 @@ static void isr_tx(void *param)
 
 static void isr_tx_rsp(void *param)
 {
-	BT_DBG("");
-
 	struct lll_adv *lll = param;
 
 	radio_isr_set(isr_done, lll);
@@ -406,8 +404,6 @@ static void isr_rx(void *param)
 	u8_t irkmatch_ok;
 	u8_t irkmatch_id;
 	u8_t rssi_ready;
-
-	BT_DBG("");
 
 	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
 		lll_prof_latency_capture();
@@ -464,7 +460,6 @@ isr_rx_do_close:
 
 static void isr_done(void *param)
 {
-	BT_DBG("");
 	struct node_rx_hdr *node_rx;
 	struct lll_adv *lll = param;
 
@@ -556,7 +551,6 @@ static void isr_done(void *param)
 
 static void isr_abort(void *param)
 {
-	BT_DBG("");
 	/* Clear radio status and events */
 	radio_status_reset();
 	radio_tmr_status_reset();
@@ -576,7 +570,6 @@ static void isr_abort(void *param)
 
 static void isr_cleanup(void *param)
 {
-	BT_DBG("");
 	int err;
 
 	radio_isr_set(isr_race, param);
@@ -590,7 +583,6 @@ static void isr_cleanup(void *param)
 
 static void isr_race(void *param)
 {
-	BT_DBG("");
 	/* NOTE: lll_disable could have a race with ... */
 	radio_status_reset();
 }
@@ -715,8 +707,10 @@ static inline int isr_rx_pdu(struct lll_adv *lll, u8_t devmatch_ok,
 		struct pdu_adv_connect_ind *x
 			= & y->connect_ind;
 
-		printk(
-			"%s(): "
+		static char log_buffer[256];
+		snprintf(
+			log_buffer,
+			sizeof(log_buffer),
 			"ticks now: %u CONNECT_IND:{\n\t"
 			"init_addr: %02x:%02x:%02x:%02x:%02x:%02x\n\t"
 			"adv_addr: %02x:%02x:%02x:%02x:%02x:%02x\n\t"
@@ -730,9 +724,8 @@ static inline int isr_rx_pdu(struct lll_adv *lll, u8_t devmatch_ok,
 			"chan_map: %02x%02x%02x%02x%02x\n\t"
 			"hop: %u\n\t"
 			"sca: %u\n"
-			"}\n"
+			"}"
 			,
-			__func__,
 			cntr_cnt_get(),
 			x->init_addr[5], x->init_addr[4], x->init_addr[3], x->init_addr[2], x->init_addr[1], x->init_addr[0],
 			x->adv_addr[5], x->adv_addr[4], x->adv_addr[3], x->adv_addr[2], x->adv_addr[1], x->adv_addr[0],
@@ -747,6 +740,7 @@ static inline int isr_rx_pdu(struct lll_adv *lll, u8_t devmatch_ok,
 			x->hop,
 			x->sca
 		);
+		BT_DBG( "%s", log_buffer );
 
 		if (IS_ENABLED(CONFIG_BT_CTLR_CHAN_SEL_2)) {
 			rx = ull_pdu_rx_alloc_peek(4);
