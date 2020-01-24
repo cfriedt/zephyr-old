@@ -39,7 +39,6 @@ static int prepare_cb(struct lll_prepare_param *prepare_param);
 
 int lll_slave_init(void)
 {
-	BT_DBG("");
 	int err;
 
 	err = init_reset();
@@ -52,7 +51,6 @@ int lll_slave_init(void)
 
 int lll_slave_reset(void)
 {
-	BT_DBG("");
 	int err;
 
 	err = init_reset();
@@ -65,7 +63,6 @@ int lll_slave_reset(void)
 
 void lll_slave_prepare(void *param)
 {
-	BT_DBG("ticks now: %u", cntr_cnt_get());
 	struct lll_prepare_param *p = param;
 	int err;
 
@@ -79,7 +76,6 @@ void lll_slave_prepare(void *param)
 
 static int init_reset(void)
 {
-	BT_DBG("");
 	return 0;
 }
 
