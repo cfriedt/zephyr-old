@@ -1492,9 +1492,12 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 		drv_data->active_command_handle =
 			RF_postCmd(rfHandle, (RF_Op *)radio_start_now_cmd,
 				   RF_PriorityNormal, rf_callback, EVENT_MASK);
-		BT_DBG("submit %s at %u",
-		       command_no_to_string(radio_start_now_cmd->commandNo),
-		       now);
+		if ( CMD_BLE_SLAVE == next_radio_cmd->commandNo ) {
+			BT_DBG("now %u: submit %s to start at %u",
+				   now,
+				   command_no_to_string(radio_start_now_cmd->commandNo),
+				   radio_start_now_cmd->startTime);
+		}
 	} else {
 		if (next_radio_cmd != NULL) {
 			/* enable T1_CMP to trigger the SEQCMD */
@@ -1507,9 +1510,12 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 				RF_postCmd(rfHandle, (RF_Op *)next_radio_cmd,
 					   RF_PriorityNormal, rf_callback,
 					   EVENT_MASK);
-			BT_DBG("submit %s at %u",
-			       command_no_to_string(next_radio_cmd->commandNo),
-			       ticks_start);
+			if ( CMD_BLE_SLAVE == next_radio_cmd->commandNo ) {
+				BT_DBG("now %u: submit %s to start at %u",
+					   now,
+					   command_no_to_string(radio_start_now_cmd->commandNo),
+					   radio_start_now_cmd->startTime);
+			}
 		}
 	}
 
