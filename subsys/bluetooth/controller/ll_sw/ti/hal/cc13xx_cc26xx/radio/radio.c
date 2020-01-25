@@ -790,7 +790,7 @@ void isr_radio(void *arg)
 		radio_trx = 1;
 	}
 
-	if (irq & (RF_EventRxOk | RF_EventRxEmpty)) {
+	if (irq & (RF_EventRxOk | RF_EventRxEmpty | RF_EventRxEntryDone)) {
 		/* Disable Rx timeout */
 		/* 0b1010..RX Cancel -- Cancels pending RX events but do not
 		 *			abort a RX-in-progress
@@ -1195,6 +1195,29 @@ void radio_pkt_tx_set(void *tx_packet)
 			typespecstr = "DATA: (unknown)";
 			break;
 		}
+
+#if 0
+		if ( NULL != typespecstr ) {
+			BT_DBG(
+				"PDU %s: {\n\t"
+				"ll_id: %u\n\t"
+				"nesn: %u\n\t"
+				"sn: %u\n\t"
+				"md: %u\n\t"
+				"rfu: %u\n\t"
+				"len: %u\n\t"
+				"}"
+				,
+				typespecstr,
+				pdu_data->ll_id,
+				pdu_data->nesn,
+				pdu_data->sn,
+				pdu_data->md,
+				pdu_data->rfu,
+				pdu_data->len
+			);
+		}
+#endif
 	}
 
 	if (drv_data->ignore_next_tx) {
@@ -1202,8 +1225,11 @@ void radio_pkt_tx_set(void *tx_packet)
 		return;
 	}
 
-	LL_ASSERT(command_no != -1);
-	LL_ASSERT(next_tx_radio_cmd != NULL);
+	if ( -1 == command_no || NULL == next_tx_radio_cmd ) {
+//		LL_ASSERT(command_no != -1);
+//		LL_ASSERT(next_tx_radio_cmd != NULL);
+		return;
+	}
 
 	next_tx_radio_cmd->commandNo = command_no;
 
@@ -1303,12 +1329,15 @@ void radio_crc_configure(u32_t polynomial, u32_t iv)
 
 u32_t radio_crc_is_valid(void)
 {
+#if 0
 	bool r = crc_valid;
 
 	/* only valid for first call */
 	crc_valid = false;
 
 	return r;
+#endif
+	return true;
 }
 
 void *radio_pkt_empty_get(void)
@@ -1608,7 +1637,7 @@ void radio_tmr_end_capture(void)
 
 u32_t radio_tmr_end_get(void)
 {
-	return tmr_end;
+	return tmr_end - rtc_start;
 }
 
 u32_t radio_tmr_tifs_base_get(void)
@@ -1721,30 +1750,63 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 					HAL_TICKER_US_TO_TICKS(len +
 						sizeof(crc - 1));
 
-				struct pdu_adv *pdu_rx = (struct pdu_adv *)data;
-				if ( PDU_ADV_TYPE_CONNECT_IND == pdu_rx->type ) {
-					u32_t now = cntr_cnt_get();
-					BT_DBG( "CONNECT_IND: now: %u timestamp: %u isr_tmr_end: %u",
-						now, timestamp, isr_tmr_end);
-					// 1.25 ms, constant value in the case of CONNECT_IND
-					const u32_t transmitWindowDelay = HAL_TICKER_US_TO_TICKS( 1250 );
-					const u32_t transmitWindowOffset = HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.win_offset * 1250 );
-					const u32_t transmitWindowSize = HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.win_size * 1250 );
-					u32_t transmitWindowStart =
-						0
-						+ isr_tmr_end
-						+ transmitWindowDelay
-						+ transmitWindowOffset
-						;
-					u32_t transmitWindowEnd =
-						0
-						+ transmitWindowStart
-						+ transmitWindowSize
-						;
-					BT_DBG( "TX Window: %u to %u [rat ticks] in %u us",
-						transmitWindowStart,
-						transmitWindowEnd,
-						HAL_TICKER_TICKS_TO_US(transmitWindowStart - now)
+				bool pdu_is_adv = drv_data->access_address == PDU_AC_ACCESS_ADDR;
+				if ( pdu_is_adv ) {
+					struct pdu_adv *pdu_rx = (struct pdu_adv *)data;
+					if ( PDU_ADV_TYPE_CONNECT_IND == pdu_rx->type ) {
+						u32_t now = cntr_cnt_get();
+						BT_DBG( "CONNECT_IND: now: %u timestamp: %u isr_tmr_end: %u",
+							now, timestamp, isr_tmr_end);
+						// 1.25 ms, constant value in the case of CONNECT_IND
+						const u32_t transmitWindowDelay = HAL_TICKER_US_TO_TICKS( 1250 );
+						const u32_t transmitWindowOffset = HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.win_offset * 1250 );
+						const u32_t transmitWindowSize = HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.win_size * 1250 );
+						u32_t transmitWindowStart =
+							0
+							+ isr_tmr_end
+							+ transmitWindowDelay
+							+ transmitWindowOffset
+							;
+						u32_t transmitWindowEnd =
+							0
+							+ transmitWindowStart
+							+ transmitWindowSize
+							;
+						BT_DBG( "TX Window: %u to %u [rat ticks] in %u us",
+							transmitWindowStart,
+							transmitWindowEnd,
+							HAL_TICKER_TICKS_TO_US(transmitWindowStart - now)
+						);
+					}
+				} else {
+					// data pdu
+					const struct pdu_data *pdu_data =
+						(const struct pdu_data *)data;
+					BT_DBG(
+						"Data PDU\n\t"
+						"len: %u\n\t"
+						"crc: %06x\n\t"
+						"rssi: %d\n\t"
+						"timestamp: %u\n"
+						"{\n\t"
+						"ll_id: %u\n\t"
+						"nesn: %u\n\t"
+						"sn: %u\n\t"
+						"md: %u\n\t"
+						"rfu: %u\n\t"
+						"len: %u\n"
+						"}"
+						,
+						len,
+						crc,
+						rssi,
+						timestamp,
+						pdu_data->ll_id,
+						pdu_data->nesn,
+						pdu_data->sn,
+						pdu_data->md,
+						pdu_data->rfu,
+						pdu_data->len
 					);
 				}
 
