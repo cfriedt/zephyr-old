@@ -216,7 +216,7 @@ static int prepare_cb(struct lll_prepare_param *prepare_param)
 	hcto += radio_rx_chain_delay_get(0, 0);
 #endif /* !CONFIG_BT_CTLR_PHY */
 
-	radio_tmr_hcto_configure(hcto);
+	//radio_tmr_hcto_configure(hcto);
 
 #if defined(CONFIG_BT_CTLR_GPIO_LNA_PIN)
 	radio_gpio_lna_setup();
