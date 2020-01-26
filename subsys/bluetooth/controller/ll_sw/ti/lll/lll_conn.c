@@ -96,6 +96,9 @@ void lll_conn_prepare_reset(void)
 	crc_expire = 0U;
 	crc_valid = 0U;
 
+	extern void radio_slave_reset(void);
+	radio_slave_reset();
+
 #if defined(CONFIG_BT_CTLR_LE_ENC)
 	mic_state = LLL_CONN_MIC_NONE;
 #endif /* CONFIG_BT_CTLR_LE_ENC */
@@ -221,6 +224,7 @@ void lll_conn_isr_rx(void *param)
 				     (pdu_data_tx->len == 0));
 
 	if (is_done) {
+		BT_DBG("");
 		radio_isr_set(isr_done, param);
 
 		if (0) {
@@ -351,6 +355,7 @@ lll_conn_isr_rx_exit:
 
 void lll_conn_isr_tx(void *param)
 {
+	BT_DBG("");
 	struct lll_conn *lll = (void *)param;
 	u32_t hcto;
 
@@ -420,6 +425,7 @@ void lll_conn_isr_tx(void *param)
 
 void lll_conn_isr_abort(void *param)
 {
+	BT_DBG("");
 	/* Clear radio status and events */
 	radio_status_reset();
 	radio_tmr_status_reset();
@@ -437,6 +443,7 @@ void lll_conn_isr_abort(void *param)
 
 void lll_conn_rx_pkt_set(struct lll_conn *lll)
 {
+	BT_DBG("");
 	struct node_rx_pdu *node_rx;
 	u16_t max_rx_octets;
 	u8_t phy;
@@ -475,6 +482,7 @@ void lll_conn_rx_pkt_set(struct lll_conn *lll)
 
 void lll_conn_tx_pkt_set(struct lll_conn *lll, struct pdu_data *pdu_data_tx)
 {
+	BT_DBG("");
 	u16_t max_tx_octets;
 	u8_t phy, flags;
 
@@ -511,6 +519,7 @@ void lll_conn_tx_pkt_set(struct lll_conn *lll, struct pdu_data *pdu_data_tx)
 
 void lll_conn_pdu_tx_prep(struct lll_conn *lll, struct pdu_data **pdu_data_tx)
 {
+	BT_DBG("");
 	struct node_tx *tx;
 	struct pdu_data *p;
 	memq_link_t *link;
@@ -553,11 +562,11 @@ void lll_conn_pdu_tx_prep(struct lll_conn *lll, struct pdu_data **pdu_data_tx)
 
 	p->rfu = 0U;
 
-#if !defined(CONFIG_SOC_OPENISA_RV32M1_RISCV32)
+#if !(defined(CONFIG_SOC_OPENISA_RV32M1_RISCV32) || defined(CONFIG_SOC_SERIES_CC13X2_CC26X2))
 #if !defined(CONFIG_BT_CTLR_DATA_LENGTH_CLEAR)
 	p->resv = 0U;
 #endif /* !CONFIG_BT_CTLR_DATA_LENGTH_CLEAR */
-#endif /* !CONFIG_SOC_OPENISA_RV32M1_RISCV32 */
+#endif /* !(CONFIG_SOC_OPENISA_RV32M1_RISCV32 || CONFIG_SOC_SERIES_CC13X2_CC26X2) */
 
 	*pdu_data_tx = p;
 }
@@ -569,6 +578,7 @@ static int init_reset(void)
 
 static void isr_done(void *param)
 {
+	BT_DBG("");
 	struct event_done_extra *e;
 
 	/* TODO: MOVE to a common interface, isr_lll_radio_status? */
@@ -626,6 +636,7 @@ static void isr_done(void *param)
 
 static void isr_cleanup(void *param)
 {
+	BT_DBG("");
 	int err;
 
 	radio_isr_set(isr_race, param);
@@ -639,6 +650,7 @@ static void isr_cleanup(void *param)
 
 static void isr_race(void *param)
 {
+	BT_DBG("");
 	/* NOTE: lll_disable could have a race with ... */
 	radio_status_reset();
 }
@@ -652,6 +664,7 @@ static inline bool ctrl_pdu_len_check(u8_t len)
 static int isr_rx_pdu(struct lll_conn *lll, struct pdu_data *pdu_data_rx,
 		      struct node_tx **tx_release, u8_t *is_rx_enqueue)
 {
+	BT_DBG("");
 	/* Ack for tx-ed data */
 	if (pdu_data_rx->nesn != lll->sn) {
 		/* Increment serial number */
@@ -779,6 +792,7 @@ static int isr_rx_pdu(struct lll_conn *lll, struct pdu_data *pdu_data_rx,
 
 static struct pdu_data *empty_tx_enqueue(struct lll_conn *lll)
 {
+	BT_DBG("");
 	struct pdu_data *p;
 
 	lll->empty = 1;

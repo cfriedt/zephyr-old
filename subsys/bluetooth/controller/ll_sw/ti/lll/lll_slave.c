@@ -196,8 +196,6 @@ static int prepare_cb(struct lll_prepare_param *prepare_param)
 
 	remainder = prepare_param->remainder;
 	remainder_us = radio_tmr_start(0, ticks_at_start, remainder);
-	BT_DBG("now: %u radio_tmr_start(0, ticks_at_start: %u, remainder: %u)..",
-	       cntr_cnt_get(), ticks_at_start, remainder);
 
 	radio_tmr_aa_capture();
 	radio_tmr_aa_save(0);
