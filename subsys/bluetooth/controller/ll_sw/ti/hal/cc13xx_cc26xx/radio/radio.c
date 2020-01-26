@@ -71,6 +71,9 @@ static void *isr_cb_param;
 #define CC13XX_CC26XX_RX_BUF_SIZE                                              \
 	(RADIO_PDU_LEN_MAX + CC13XX_CC26XX_ADDITIONAL_DATA_BYTES)
 
+#define CC13XX_CC26XX_NUM_TX_BUF 2
+#define CC13XX_CC26XX_TX_BUF_SIZE RADIO_PDU_LEN_MAX
+
 /* us values */
 #define MIN_CMD_TIME 400 /* Minimum interval for a delayed radio cmd */
 #define RX_MARGIN 8
@@ -105,9 +108,14 @@ struct ble_cc13xx_cc26xx_data {
 	RF_EventMask rx_mask;
 
 	dataQueue_t rx_queue;
-	rfc_dataEntryPointer_t rx_entry[RADIO_PDU_LEN_MAX];
+	rfc_dataEntryPointer_t rx_entry[CC13XX_CC26XX_NUM_RX_BUF];
 	u8_t rx_data[CC13XX_CC26XX_NUM_RX_BUF]
 		    [CC13XX_CC26XX_RX_BUF_SIZE] __aligned(4);
+
+	dataQueue_t tx_queue;
+	rfc_dataEntryPointer_t tx_entry[CC13XX_CC26XX_NUM_TX_BUF];
+	u8_t tx_data[CC13XX_CC26XX_NUM_TX_BUF]
+		    [CC13XX_CC26XX_TX_BUF_SIZE] __aligned(4);
 
 	RF_CmdHandle active_command_handle;
 
@@ -352,6 +360,7 @@ static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
 
 	.cmd_ble_slave_param = {
 		.pRxQ = &ble_cc13xx_cc26xx_data.rx_queue,
+		.pTxQ = &ble_cc13xx_cc26xx_data.tx_queue,
 		.rxConfig = {
 			.bAutoFlushIgnored = true,
 			.bAutoFlushCrcErr = true,
@@ -781,6 +790,12 @@ void isr_radio(void *arg)
 		       command_no_to_string(op->commandNo), isr_radio_param->e);
 		describe_event_mask(isr_radio_param->e);
 		describe_ble_status(op->status);
+
+		/* pParams->seqStat.bFirstPkt shall be cleared by the radio CPU.
+		 *
+		 * Best to ensure that automatic CRC checking is restored too.
+		 */
+		drv_data->cmd_ble_slave_param.rxConfig.bAutoFlushCrcErr = true;
 	}
 
 	if (irq & RF_EventTxDone) {
@@ -874,17 +889,40 @@ static void ble_cc13xx_cc26xx_data_init(void)
 	drv_data->rx_entry[0].pNextEntry = (u8_t *)&drv_data->rx_entry[1];
 	drv_data->rx_entry[0].config.type = DATA_ENTRY_TYPE_PTR;
 	drv_data->rx_entry[0].config.lenSz = 1;
+	drv_data->rx_entry[0].status = DATA_ENTRY_PENDING;
 	drv_data->rx_entry[0].length = sizeof(drv_data->rx_data[0]);
 	drv_data->rx_entry[0].pData = drv_data->rx_data[0];
 
 	drv_data->rx_entry[1].pNextEntry = (u8_t *)&drv_data->rx_entry[0];
 	drv_data->rx_entry[1].config.type = DATA_ENTRY_TYPE_PTR;
 	drv_data->rx_entry[1].config.lenSz = 1;
+	drv_data->rx_entry[0].status = DATA_ENTRY_PENDING;
 	drv_data->rx_entry[1].length = sizeof(drv_data->rx_data[1]);
 	drv_data->rx_entry[1].pData = drv_data->rx_data[1];
 
 	drv_data->rx_queue.pCurrEntry = (u8_t *)&drv_data->rx_entry[0];
 	drv_data->rx_queue.pLastEntry = NULL;
+
+	/* Setup circular TX queue (TRM 25.3.2.7) */
+	memset(&drv_data->tx_entry[0], 0, sizeof(drv_data->tx_entry[0]));
+	memset(&drv_data->tx_entry[1], 0, sizeof(drv_data->tx_entry[1]));
+
+	drv_data->tx_entry[0].pNextEntry = (u8_t *)&drv_data->tx_entry[1];
+	drv_data->tx_entry[0].config.type = DATA_ENTRY_TYPE_PTR;
+	drv_data->tx_entry[0].config.lenSz = 1;
+	drv_data->tx_entry[0].status = DATA_ENTRY_FINISHED;
+	drv_data->tx_entry[0].length = sizeof(drv_data->tx_data[0]);
+	drv_data->tx_entry[0].pData = drv_data->tx_data[0];
+
+	drv_data->tx_entry[1].pNextEntry = (u8_t *)&drv_data->tx_entry[0];
+	drv_data->tx_entry[1].config.type = DATA_ENTRY_TYPE_PTR;
+	drv_data->tx_entry[1].config.lenSz = 1;
+	drv_data->tx_entry[0].status = DATA_ENTRY_FINISHED;
+	drv_data->tx_entry[1].length = sizeof(drv_data->tx_data[1]);
+	drv_data->tx_entry[1].pData = drv_data->tx_data[1];
+
+	drv_data->tx_queue.pCurrEntry = (u8_t *)&drv_data->tx_entry[0];
+	drv_data->tx_queue.pLastEntry = NULL;
 
 	drv_data->active_command_handle = -1;
 
@@ -1032,6 +1070,25 @@ void radio_pkt_rx_set(void *rx_packet)
 	rx_pkt_ptr = rx_packet;
 }
 
+static void radio_enqueue_tx_pdu(const void *data, const size_t len) {
+
+	//size_t i;
+	//for(i = 0; i < CC13XX_CC26XX_NUM_TX_BUF; ++i) {
+	{
+		size_t i = 0;
+		rfc_dataEntryPointer_t *entry = & drv_data->tx_entry[i];
+		uint8_t *buffer = drv_data->tx_data[i];
+		//if (DATA_ENTRY_ACTIVE == entry->status) {
+		{
+			entry->length = MIN(len,CC13XX_CC26XX_TX_BUF_SIZE);
+			memcpy(buffer, data, entry->length);
+			entry->status = DATA_ENTRY_PENDING;
+			return;
+		}
+	}
+	//BT_DBG("no tx buffer available");
+}
+
 void radio_pkt_tx_set(void *tx_packet)
 {
 	char *typespecstr = "(unknown)";
@@ -1101,6 +1158,7 @@ void radio_pkt_tx_set(void *tx_packet)
 		switch (pdu_data->ll_id) {
 		case PDU_DATA_LLID_DATA_CONTINUE:
 			typespecstr = "DATA: DATA_CONTINUE";
+			radio_enqueue_tx_pdu(pdu_data, PDU_DC_LL_HEADER_SIZE + pdu_data->len);
 			break;
 		case PDU_DATA_LLID_DATA_START:
 			typespecstr = "DATA: DATA_START";
@@ -1196,7 +1254,7 @@ void radio_pkt_tx_set(void *tx_packet)
 			break;
 		}
 
-#if 0
+#if 1
 		if ( NULL != typespecstr ) {
 			BT_DBG(
 				"PDU %s: {\n\t"
@@ -1522,8 +1580,9 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 			RF_postCmd(rfHandle, (RF_Op *)radio_start_now_cmd,
 				   RF_PriorityNormal, rf_callback, EVENT_MASK);
 		if ( CMD_BLE_SLAVE == next_radio_cmd->commandNo ) {
-			BT_DBG("now %u: submit %s to start at %u",
+			BT_DBG("now %u: ticks_start: %u submit %s to start at %u",
 				   now,
+				   ticks_start + HAL_TICKER_US_TO_TICKS( remainder ),
 				   command_no_to_string(radio_start_now_cmd->commandNo),
 				   radio_start_now_cmd->startTime);
 		}
@@ -1540,10 +1599,11 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 					   RF_PriorityNormal, rf_callback,
 					   EVENT_MASK);
 			if ( CMD_BLE_SLAVE == next_radio_cmd->commandNo ) {
-				BT_DBG("now %u: submit %s to start at %u",
+				BT_DBG("now %u: ticks_start: %u submit %s to start at %u",
 					   now,
-					   command_no_to_string(radio_start_now_cmd->commandNo),
-					   radio_start_now_cmd->startTime);
+					   ticks_start + HAL_TICKER_US_TO_TICKS( remainder ),
+					   command_no_to_string(next_radio_cmd->commandNo),
+					   next_radio_cmd->startTime);
 			}
 		}
 	}
@@ -1772,10 +1832,10 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 							+ transmitWindowStart
 							+ transmitWindowSize
 							;
-						BT_DBG( "TX Window: %u to %u [rat ticks] in %u us",
+						BT_DBG( "TX Window: [%u,%u] ticks (%u us)",
 							transmitWindowStart,
 							transmitWindowEnd,
-							HAL_TICKER_TICKS_TO_US(transmitWindowStart - now)
+							HAL_TICKER_TICKS_TO_US(transmitWindowEnd - transmitWindowStart)
 						);
 					}
 				} else {
@@ -1863,13 +1923,37 @@ void radio_set_up_slave_cmd(void)
 	drv_data->cmd_ble_slave_param.crcInit2 =
 		(drv_data->polynomial >> 16) & 0xff;
 
-	// even if there is a crc error, the first received packet sets the anchor point
-	drv_data->cmd_ble_slave_param.rxConfig.bAutoFlushCrcErr = false;
-	// so that the radio does not mistake the received packet for an ACK or NACK
-	drv_data->cmd_ble_slave_param.seqStat.bFirstPkt = true;
-
 	drv_data->cmd_ble_slave.channel = drv_data->chan;
 
 	next_radio_cmd = (rfc_bleRadioOp_t *)&drv_data->cmd_ble_slave;
 	drv_data->ignore_next_rx = false;
+}
+
+void radio_slave_reset(void) {
+
+	BT_DBG("");
+
+	/*
+	 *  BLE Core Spec 5.1: 4.5.5 Connection setup - Slave Role
+	 *
+	 *  The first packet received, regardless of a valid CRC match (i.e. only
+	 *  the access code matches), in the Connection State by the slave
+	 *  determines anchor point for the first connection event, and therefore
+	 *  the timings of all future connection events in this connection.
+	 */
+	drv_data->cmd_ble_slave_param.rxConfig.bAutoFlushCrcErr = false;
+
+	/* See TRM 25.8.5: Link Layer Connection
+	 *
+	 * Before the first operation on a connection, the bits in pParams->seqStat
+	 * shall be set as follows by the system CPU:
+	 */
+	drv_data->cmd_ble_slave_param.seqStat.lastRxSn = 1;
+	drv_data->cmd_ble_slave_param.seqStat.lastTxSn = 1;
+	drv_data->cmd_ble_slave_param.seqStat.nextTxSn = 0;
+	drv_data->cmd_ble_slave_param.seqStat.bFirstPkt = true;
+	drv_data->cmd_ble_slave_param.seqStat.bAutoEmpty = false;
+	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlTx = false;
+	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlAckRx = false;
+	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlAckPending = false;
 }
