@@ -121,6 +121,13 @@ struct ble_cc13xx_cc26xx_data {
 
 	RF_RatConfigCompare rat_hcto_compare;
 	RF_RatHandle rat_hcto_handle;
+
+#if defined(CONFIG_BT_CTLR_DEBUG_PINS)
+	u32_t window_begin_ticks;
+	u32_t window_duration_ticks;
+	u32_t window_interval_ticks;
+#endif /* defined(CONFIG_BT_CTLR_DEBUG_PINS) */
+
 	bool ignore_next_rx;
 	bool ignore_next_tx;
 
@@ -162,6 +169,12 @@ static void update_adv_data(u8_t *data, u8_t len, bool scan_rsp);
 static void rat_deferred_hcto_callback(RF_Handle h, RF_RatHandle rh,
 				       RF_EventMask e,
 				       u32_t compareCaptureTime);
+
+#if defined(CONFIG_BT_CTLR_DEBUG_PINS)
+static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval);
+#else
+#define transmit_window_debug(a, b, c)
+#endif
 
 static inline bool ble_commandNo_automatically_performs_rx(u16_t commandNo)
 {
@@ -209,6 +222,9 @@ static RF_Handle rfHandle;
 
 /* Overrides for CMD_BLE5_RADIO_SETUP */
 static u32_t pOverridesCommon[] = {
+#if defined(CONFIG_BT_CTLR_DEBUG_PINS)
+	HW_REG_OVERRIDE(0x1110, RFC_DBELL_SYSGPOCTL_GPOCTL2_RATGPO2),
+#endif /* defined(CONFIG_BT_CTLR_DEBUG_PINS) */
 	(u32_t)0x00F388D3,
 	/* Bluetooth 5: Set pilot tone length to 20 us Common */
 	HW_REG_OVERRIDE(0x6024, 0x2E20),
@@ -245,6 +261,7 @@ static u32_t pOverridesCoded[] = {
 };
 
 static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
+
 	/* clang-format off */
 	.cmd_set_frequency = {
 		.commandNo = CMD_FS,
@@ -1832,10 +1849,10 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 							+ transmitWindowStart
 							+ transmitWindowSize
 							;
-						BT_DBG( "TX Window: [%u,%u] ticks (%u us)",
+						transmit_window_debug(
 							transmitWindowStart,
-							transmitWindowEnd,
-							HAL_TICKER_TICKS_TO_US(transmitWindowEnd - transmitWindowStart)
+							transmitWindowEnd - transmitWindowStart,
+							HAL_TICKER_US_TO_TICKS( pdu_rx->connect_ind.interval * 1250 )
 						);
 					}
 				} else {
@@ -1957,3 +1974,49 @@ void radio_slave_reset(void) {
 	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlAckRx = false;
 	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlAckPending = false;
 }
+
+#if defined(CONFIG_BT_CTLR_DEBUG_PINS)
+static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask e, u32_t compareCaptureTime) {
+	u32_t now = RF_getCurrentTime();
+
+	if ( now >= drv_data->window_begin_ticks + drv_data->window_duration_ticks ) {
+
+		/* reschedule the next transmit window after 1 interval */
+		transmit_window_debug( drv_data->window_begin_ticks + drv_data->window_interval_ticks, drv_data->window_duration_ticks, drv_data->window_interval_ticks );
+	}
+
+	BT_DBG("now: %u rh: %d e: %" PRIx64 " compareCaptureTime: %u", now, rh, e, compareCaptureTime );
+	describe_event_mask(e);
+}
+
+static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
+
+	BT_DBG( "TX Window: [%u,%u] ticks (%u us) every %u ticks (%u us)",
+		begin,
+		begin + duration,
+		HAL_TICKER_TICKS_TO_US(duration),
+		interval,
+		HAL_TICKER_TICKS_TO_US(interval)
+	);
+
+	drv_data->window_begin_ticks = begin;
+	drv_data->window_duration_ticks = duration;
+	drv_data->window_interval_ticks = interval;
+
+	RF_RatConfigCompare channelConfig = {
+		.callback = transmit_window_callback,
+		.channel = RF_RatChannel1,
+		.timeout = begin,
+	};
+	RF_RatConfigOutput ioConfig = {
+		.mode = RF_RatOutputModeSet,
+		.select = RF_RatOutputSelectRatGpo2,
+	};
+	RF_ratCompare(rfHandle, &channelConfig, &ioConfig);
+
+	channelConfig.channel++;
+	channelConfig.timeout += duration;
+	ioConfig.mode = RF_RatOutputModeClear;
+	RF_ratCompare(rfHandle, &channelConfig, &ioConfig);
+}
+#endif /* defined(CONFIG_BT_CTLR_DEBUG_PINS) */
