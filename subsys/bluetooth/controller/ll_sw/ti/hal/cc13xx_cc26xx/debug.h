@@ -29,17 +29,19 @@
 #include <drivers/gpio.h>
 #include <driverlib/gpio.h>
 #include <driverlib/ioc.h>
+#include <driverlib/rfc.h>
+#include <inc/hw_rfc_dbell.h>
 
-#define DEBUG0_PIN 29
-#define DEBUG1_PIN 4
-#define DEBUG2_PIN 21
-#define DEBUG3_PIN 27
-#define DEBUG4_PIN 24
-#define DEBUG5_PIN 22
-#define DEBUG6_PIN 28
-#define DEBUG7_PIN 23
-#define DEBUG8_PIN 5
-#define DEBUG9_PIN 30
+#define DEBUG0_PIN IOID_29
+#define DEBUG1_PIN IOID_4
+#define DEBUG2_PIN IOID_21
+#define DEBUG3_PIN IOID_27
+#define DEBUG4_PIN IOID_24
+#define DEBUG5_PIN IOID_22
+#define DEBUG6_PIN IOID_28
+#define DEBUG7_PIN IOID_23
+#define DEBUG8_PIN IOID_5
+#define DEBUG9_PIN IOID_30
 
 extern struct device *ti_ble_debug_port;
 
@@ -88,9 +90,11 @@ extern struct device *ti_ble_debug_port;
 		GPIO_setClearDio(DEBUG8_PIN, 0);                               \
 		GPIO_setClearDio(DEBUG9_PIN, 0);                               \
 		IOCPortConfigureSet(DEBUG8_PIN, IOC_PORT_RFC_GPO0,             \
-				    IOC_IOMODE_NORMAL);                        \
+				    IOC_STD_OUTPUT);                        \
+		IOCPortConfigureSet(DEBUG4_PIN, IOC_PORT_RFC_GPO2, \
+				    IOC_STD_OUTPUT); \
 		IOCPortConfigureSet(DEBUG9_PIN, IOC_PORT_RFC_GPO3,             \
-				    IOC_IOMODE_NORMAL);                        \
+				    IOC_STD_OUTPUT);                        \
 	} while (0)
 
 #define DEBUG_CPU_SLEEP(flag) GPIO_setClearDio(DEBUG0_PIN, flag)
@@ -123,11 +127,15 @@ extern struct device *ti_ble_debug_port;
 
 #define DEBUG_RADIO_CLOSE_A(flag) GPIO_setClearDio(DEBUG3_PIN, flag)
 
+#if 0
 #define DEBUG_RADIO_PREPARE_S(flag) GPIO_setClearDio(DEBUG4_PIN, flag)
-
 #define DEBUG_RADIO_START_S(flag) GPIO_setClearDio(DEBUG4_PIN, flag)
-
 #define DEBUG_RADIO_CLOSE_S(flag) GPIO_setClearDio(DEBUG4_PIN, flag)
+#else
+#define DEBUG_RADIO_PREPARE_S(flag)
+#define DEBUG_RADIO_START_S(flag)
+#define DEBUG_RADIO_CLOSE_S(flag)
+#endif
 
 #define DEBUG_RADIO_PREPARE_O(flag) GPIO_setClearDio(DEBUG5_PIN, flag)
 

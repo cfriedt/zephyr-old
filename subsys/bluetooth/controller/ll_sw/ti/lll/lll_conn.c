@@ -152,8 +152,6 @@ void lll_conn_isr_rx(void *param)
 	u8_t is_done;
 	u8_t crc_ok;
 
-	BT_DBG("");
-
 #if defined(CONFIG_BT_CTLR_PROFILE_ISR)
 	lll_prof_latency_capture();
 #endif /* CONFIG_BT_CTLR_PROFILE_ISR */
@@ -178,7 +176,7 @@ void lll_conn_isr_rx(void *param)
 
 	if (!trx_done) {
 		radio_isr_set(isr_done, param);
-		BT_DBG("%d", __LINE__);
+		BT_DBG("%d: about to call radio_disable()", __LINE__);
 		radio_disable();
 
 		return;
@@ -224,14 +222,14 @@ void lll_conn_isr_rx(void *param)
 				     (pdu_data_tx->len == 0));
 
 	if (is_done) {
-		BT_DBG("");
+		BT_DBG("%d: about to call radio_isr_set(isr_done)", __LINE__);
 		radio_isr_set(isr_done, param);
 
 		if (0) {
 #if defined(CONFIG_BT_CENTRAL)
 			/* Event done for master */
 		} else if (!lll->role) {
-			BT_DBG("%d", __LINE__);
+			BT_DBG("%d: about to call radio_disable()", __LINE__);
 			radio_disable();
 
 			/* assert if radio packet ptr is not set and radio
