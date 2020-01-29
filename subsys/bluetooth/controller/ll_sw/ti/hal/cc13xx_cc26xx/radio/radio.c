@@ -1979,14 +1979,14 @@ void radio_slave_reset(void) {
 static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask e, u32_t compareCaptureTime) {
 	u32_t now = RF_getCurrentTime();
 
+	BT_DBG("now: %u rh: %d %u", now, rh, compareCaptureTime );
+	describe_event_mask(e);
+
 	if ( now >= drv_data->window_begin_ticks + drv_data->window_duration_ticks ) {
 
 		/* reschedule the next transmit window after 1 interval */
 		transmit_window_debug( drv_data->window_begin_ticks + drv_data->window_interval_ticks, drv_data->window_duration_ticks, drv_data->window_interval_ticks );
 	}
-
-	BT_DBG("now: %u rh: %d e: %" PRIx64 " compareCaptureTime: %u", now, rh, e, compareCaptureTime );
-	describe_event_mask(e);
 }
 
 static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
