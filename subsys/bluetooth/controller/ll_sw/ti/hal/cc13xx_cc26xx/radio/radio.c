@@ -229,8 +229,8 @@ static u32_t pOverridesCommon[] = {
 		0x1110,
 		0
 		| RFC_DBELL_SYSGPOCTL_GPOCTL0_RATGPO1 /* RX */
-		| RFC_DBELL_SYSGPOCTL_GPOCTL1_CPEGPO1 /* PA */
-		| RFC_DBELL_SYSGPOCTL_GPOCTL2_CPEGPO2 /* synth */
+		| RFC_DBELL_SYSGPOCTL_GPOCTL1_CPEGPO1 /* PA (default setting) */
+		| RFC_DBELL_SYSGPOCTL_GPOCTL2_RATGPO2 /* BLE TX Window */
 		| RFC_DBELL_SYSGPOCTL_GPOCTL3_RATGPO0 /* TX */
 	),
 #endif /* defined(CONFIG_BT_CTLR_DEBUG_PINS) */
@@ -1992,6 +1992,8 @@ static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask 
 	describe_event_mask(e);
 
 	if ( now >= drv_data->window_begin_ticks + drv_data->window_duration_ticks ) {
+
+		drv_data->window_begin_ticks += drv_data->window_interval_ticks;
 
 		/* reschedule the next transmit window after 1 interval */
 		transmit_window_debug( drv_data->window_begin_ticks + drv_data->window_interval_ticks, drv_data->window_duration_ticks, drv_data->window_interval_ticks );
