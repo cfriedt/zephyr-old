@@ -223,7 +223,16 @@ static RF_Handle rfHandle;
 /* Overrides for CMD_BLE5_RADIO_SETUP */
 static u32_t pOverridesCommon[] = {
 #if defined(CONFIG_BT_CTLR_DEBUG_PINS)
-	HW_REG_OVERRIDE(0x1110, RFC_DBELL_SYSGPOCTL_GPOCTL2_RATGPO2),
+	/* See http://bit.ly/2vydFIa */
+	(u32_t)0x008F88B3,
+	HW_REG_OVERRIDE(
+		0x1110,
+		0
+		| RFC_DBELL_SYSGPOCTL_GPOCTL0_RATGPO1 /* RX */
+		| RFC_DBELL_SYSGPOCTL_GPOCTL1_CPEGPO1 /* PA */
+		| RFC_DBELL_SYSGPOCTL_GPOCTL2_CPEGPO2 /* synth */
+		| RFC_DBELL_SYSGPOCTL_GPOCTL3_RATGPO0 /* TX */
+	),
 #endif /* defined(CONFIG_BT_CTLR_DEBUG_PINS) */
 	(u32_t)0x00F388D3,
 	/* Bluetooth 5: Set pilot tone length to 20 us Common */
@@ -1979,7 +1988,7 @@ void radio_slave_reset(void) {
 static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask e, u32_t compareCaptureTime) {
 	u32_t now = RF_getCurrentTime();
 
-	BT_DBG("now: %u rh: %d %u", now, rh, compareCaptureTime );
+	BT_DBG("now: %u rh: %d compareCaptureTime: %u", now, rh, compareCaptureTime );
 	describe_event_mask(e);
 
 	if ( now >= drv_data->window_begin_ticks + drv_data->window_duration_ticks ) {
