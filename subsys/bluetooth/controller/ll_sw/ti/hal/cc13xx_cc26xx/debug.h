@@ -36,49 +36,49 @@
 #define DEBUG1_PIN IOID_4
 #define DEBUG2_PIN IOID_21
 #define DEBUG3_PIN IOID_27
-#define DEBUG4_PIN IOID_24
+#define DEBUG4_PIN IOID_24 /* BLE TX Window */
 #define DEBUG5_PIN IOID_22
 #define DEBUG6_PIN IOID_28
-#define DEBUG7_PIN IOID_23
-#define DEBUG8_PIN IOID_5
-#define DEBUG9_PIN IOID_30
+#define DEBUG7_PIN IOID_23 /* ISR */
+#define DEBUG8_PIN IOID_5  /* RX */
+#define DEBUG9_PIN IOID_30 /* TX */
 
 extern struct device *ti_ble_debug_port;
 
-#define GPIO_setClearDio(pin, set)                                             \
-	do {                                                                   \
+#define GPIO_setClearDio(pin, set)                                     \
+	do {                                                               \
 		if (set) {                                                     \
-			GPIO_setDio(pin);                                      \
+			GPIO_setDio(pin);                                          \
 		} else {                                                       \
-			GPIO_clearDio(pin);                                    \
-		}	                                                       \
+			GPIO_clearDio(pin);                                        \
+		}	                                                           \
 	} while (0)
 
-#define DEBUG_INIT()                                                           \
-	do {                                                                   \
+#define DEBUG_INIT()                                                   \
+	do {                                                               \
 		/* There is only 1 gpio controller on the cc1352r */           \
 		ti_ble_debug_port =                                            \
-			device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);    \
+			device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);        \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG0_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG1_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG2_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG3_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG4_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG5_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG6_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG7_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG8_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		gpio_pin_configure(ti_ble_debug_port, DEBUG9_PIN,              \
-				   GPIO_DIR_OUT);                              \
+				   GPIO_DIR_OUT);                                      \
 		GPIO_setClearDio(DEBUG0_PIN, 0);                               \
 		GPIO_setClearDio(DEBUG1_PIN, 0);                               \
 		GPIO_setClearDio(DEBUG2_PIN, 0);                               \
@@ -87,15 +87,15 @@ extern struct device *ti_ble_debug_port;
 		GPIO_setClearDio(DEBUG5_PIN, 0);                               \
 		GPIO_setClearDio(DEBUG6_PIN, 0);                               \
 		GPIO_setClearDio(DEBUG7_PIN, 0);                               \
-		GPIO_setClearDio(DEBUG8_PIN, 0);                               \
-		GPIO_setClearDio(DEBUG9_PIN, 0);                               \
-		IOCPortConfigureSet(DEBUG8_PIN, IOC_PORT_RFC_GPO0,             \
-				    IOC_STD_OUTPUT);                        \
-		IOCPortConfigureSet(DEBUG4_PIN, IOC_PORT_RFC_GPO2, \
-				    IOC_STD_OUTPUT); \
-		IOCPortConfigureSet(DEBUG9_PIN, IOC_PORT_RFC_GPO3,             \
-				    IOC_STD_OUTPUT);                        \
-	} while (0)
+        GPIO_setClearDio(DEBUG8_PIN, 0);                               \
+        GPIO_setClearDio(DEBUG9_PIN, 0);                               \
+        IOCPortConfigureSet(DEBUG8_PIN, IOC_PORT_RFC_GPO0,             \
+                            IOC_STD_OUTPUT);                           \
+        IOCPortConfigureSet(DEBUG4_PIN, IOC_PORT_RFC_GPO2,             \
+                            IOC_STD_OUTPUT);                           \
+        IOCPortConfigureSet(DEBUG9_PIN, IOC_PORT_RFC_GPO3,             \
+                            IOC_STD_OUTPUT);                           \
+    } while (0)
 
 #define DEBUG_CPU_SLEEP(flag) GPIO_setClearDio(DEBUG0_PIN, flag)
 
@@ -111,13 +111,13 @@ extern struct device *ti_ble_debug_port;
 
 #define DEBUG_RADIO_ACTIVE(flag) GPIO_setClearDio(DEBUG9_PIN, flag)
 
-#define DEBUG_RADIO_CLOSE(flag)                                                \
-	do {                                                                   \
+#define DEBUG_RADIO_CLOSE(flag)                                        \
+	do {                                                               \
 		if (!flag) {                                                   \
-			GPIO_setClearDio(DEBUG3_PIN, flag);                    \
-			GPIO_setClearDio(DEBUG4_PIN, flag);                    \
-			GPIO_setClearDio(DEBUG5_PIN, flag);                    \
-			GPIO_setClearDio(DEBUG6_PIN, flag);                    \
+			GPIO_setClearDio(DEBUG3_PIN, flag);                        \
+			GPIO_setClearDio(DEBUG4_PIN, flag);                        \
+			GPIO_setClearDio(DEBUG5_PIN, flag);                        \
+			GPIO_setClearDio(DEBUG6_PIN, flag);                        \
 		}                                                              \
 	} while (0)
 
