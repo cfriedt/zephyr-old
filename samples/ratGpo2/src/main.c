@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     rfHandle = RF_open(&rfObject, &RF_prop, (RF_RadioSetup*)&RF_cmdPropRadioDivSetup, &rfParams);
 
     RF_RatConfigOutput_init(&output);
-    output.mode = RF_RatOutputModePulse;
+    output.mode = RF_RatOutputModeToggle;
     output.select = RF_RatOutputSelectRatGpo2;
 
     RF_RatConfigCompare_init(&config);
