@@ -66,7 +66,7 @@ static void describe_rf_event( const RF_EventMask e ) {
 
 void onRatTriggered(RF_Handle h, RF_RatHandle rh, RF_EventMask e, uint32_t compareCaptureTime)
 {
-    //describe_rf_event( e );
+    describe_rf_event( e );
     if (e & RF_EventError)
     {
         while(1);
