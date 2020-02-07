@@ -18,7 +18,7 @@ static PIN_State ledPinState;
 
 PIN_Config pinTable[] =
 {
-    IOID_7 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    IOID_24 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     PIN_TERMINATE
 };
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
         while(1);
     }
 
-    PINCC26XX_setMux(ledPinHandle, IOID_7, PINCC26XX_MUX_RFC_GPO0);
+    PINCC26XX_setMux(ledPinHandle, IOID_24, PINCC26XX_MUX_RFC_GPO2);
     rfHandle = RF_open(&rfObject, &RF_prop, (RF_RadioSetup*)&RF_cmdPropRadioDivSetup, &rfParams);
 
     RF_RatConfigOutput_init(&output);

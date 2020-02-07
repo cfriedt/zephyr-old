@@ -12,7 +12,7 @@ RF_Mode RF_prop =
 // Overrides for CMD_PROP_RADIO_DIV_SETUP
 uint32_t pOverrides[] =
 {
-	HW_REG_OVERRIDE(0x1110, RFC_DBELL_SYSGPOCTL_GPOCTL0_RATGPO2),
+	HW_REG_OVERRIDE(0x1110, RFC_DBELL_SYSGPOCTL_GPOCTL2_RATGPO2),
     // override_prop_common.xml
     // DC/DC regulator: In Tx, use DCDCCTL5[3:0]=0x7 (DITHER_EN=0 and IPEAK=7).
     (uint32_t)0x00F788D3,
