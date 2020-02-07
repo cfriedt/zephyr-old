@@ -7,7 +7,7 @@
 #include DeviceFamily_constructPath(driverlib/rf_common_cmd.h)
 #include DeviceFamily_constructPath(driverlib/rf_prop_cmd.h)
 #include <ti/drivers/rf/RF.h>
-#include DeviceFamily_constructPath(rf_patches/rf_patch_cpe_prop.h)
+#include DeviceFamily_constructPath(rf_patches/rf_patch_cpe_multi_protocol.h)
 
 #include <inc/hw_rfc_dbell.h>
 
