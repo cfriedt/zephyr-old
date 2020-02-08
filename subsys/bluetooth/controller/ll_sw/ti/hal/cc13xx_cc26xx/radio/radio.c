@@ -7,6 +7,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <string.h>
+
 #include <sys/dlist.h>
 #include <sys/mempool_base.h>
 #include <toolchain.h>
@@ -935,9 +937,10 @@ static void ble_cc13xx_cc26xx_data_init(void)
 
 	drv_data->tx_entry[0].pNextEntry = (u8_t *)&drv_data->tx_entry[1];
 	drv_data->tx_entry[0].config.type = DATA_ENTRY_TYPE_PTR;
-	drv_data->tx_entry[0].config.lenSz = 1;
+	drv_data->tx_entry[0].config.lenSz = 0;
+	drv_data->tx_entry[0].config.irqIntv = 0;
 	drv_data->tx_entry[0].status = DATA_ENTRY_FINISHED;
-	drv_data->tx_entry[0].length = sizeof(drv_data->tx_data[0]);
+	drv_data->tx_entry[0].length = 0;
 	drv_data->tx_entry[0].pData = drv_data->tx_data[0];
 
 	drv_data->tx_entry[1].pNextEntry = (u8_t *)&drv_data->tx_entry[0];
@@ -1868,6 +1871,9 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 					// data pdu
 					const struct pdu_data *pdu_data =
 						(const struct pdu_data *)data;
+					u8_t *features = (u8_t *)pdu_data->llctrl.feature_req.features;
+					static char features_str[ 3 * sizeof( pdu_data->llctrl.feature_req.features ) + 1 ];
+					snprintf( features_str, sizeof( features_str ), "%02x %02x %02x %02x %02x %02x %02x %02x", features[ 0 ], features[ 1 ], features[ 2 ], features[ 3 ], features[ 4 ], features[ 5 ], features[ 6 ], features[ 7 ] );
 					BT_DBG(
 						"Data PDU\n\t"
 						"len: %u\n\t"
@@ -1880,7 +1886,9 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 						"sn: %u\n\t"
 						"md: %u\n\t"
 						"rfu: %u\n\t"
-						"len: %u\n"
+						"len: %u\n\t"
+						"llctrl.opcode: %02x\n\t"
+						"llctrl.feature_req.features: %s\n"
 						"}"
 						,
 						len,
@@ -1892,7 +1900,9 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 						pdu_data->sn,
 						pdu_data->md,
 						pdu_data->rfu,
-						pdu_data->len
+						pdu_data->len,
+						pdu_data->llctrl.opcode,
+						features_str
 					);
 				}
 
