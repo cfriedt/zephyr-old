@@ -1991,12 +1991,28 @@ static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask 
 	BT_DBG("now: %u rh: %d compareCaptureTime: %u", now, rh, compareCaptureTime );
 	describe_event_mask(e);
 
-	if ( now >= drv_data->window_begin_ticks + drv_data->window_duration_ticks ) {
+	u32_t begin = drv_data->window_begin_ticks;
+	u32_t duration = drv_data->window_duration_ticks;
+	u32_t interval = drv_data->window_interval_ticks;
 
-		drv_data->window_begin_ticks += drv_data->window_interval_ticks;
+	if ( now >= begin + duration ) {
 
 		/* reschedule the next transmit window after 1 interval */
-		transmit_window_debug( drv_data->window_begin_ticks + drv_data->window_interval_ticks, drv_data->window_duration_ticks, drv_data->window_interval_ticks );
+		transmit_window_debug( begin + interval, duration, interval );
+
+	} else if ( now >= begin ) {
+
+		RF_RatConfigCompare channelConfig = {
+			.callback = transmit_window_callback,
+			.channel = RF_RatChannel1,
+			.timeout = begin + duration,
+		};
+		RF_RatConfigOutput ioConfig = {
+			.mode = RF_RatOutputModeClear,
+			.select = RF_RatOutputSelectRatGpo2,
+		};
+		RF_ratCompare(rfHandle, &channelConfig, &ioConfig);
+
 	}
 }
 
@@ -2023,11 +2039,6 @@ static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
 		.mode = RF_RatOutputModeSet,
 		.select = RF_RatOutputSelectRatGpo2,
 	};
-	RF_ratCompare(rfHandle, &channelConfig, &ioConfig);
-
-	channelConfig.channel++;
-	channelConfig.timeout += duration;
-	ioConfig.mode = RF_RatOutputModeClear;
 	RF_ratCompare(rfHandle, &channelConfig, &ioConfig);
 }
 #endif /* defined(CONFIG_BT_CTLR_DEBUG_PINS) */
