@@ -322,6 +322,7 @@ lll_conn_isr_rx_exit:
 		is_ull_rx = 1U;
 	}
 
+	BT_DBG("is_ull_rx: %u", is_ull_rx);
 	if (is_ull_rx) {
 		ull_rx_sched();
 	}

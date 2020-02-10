@@ -1094,6 +1094,9 @@ void ull_rx_put(memq_link_t *link, void *rx)
 
 void ull_rx_sched(void)
 {
+
+	BT_DBG("");
+
 	static memq_link_t link;
 	static struct mayfly mfy = {0, 0, &link, NULL, rx_demux};
 
@@ -1476,6 +1479,8 @@ static void rx_demux(void *param)
 {
 	memq_link_t *link;
 
+	BT_DBG("");
+
 #if !defined(CONFIG_BT_CTLR_LOW_LAT_ULL)
 	do {
 #endif /* CONFIG_BT_CTLR_LOW_LAT_ULL */
@@ -1546,6 +1551,7 @@ static void rx_demux(void *param)
  */
 static inline int rx_demux_rx(memq_link_t *link, struct node_rx_hdr *rx)
 {
+	BT_DBG("");
 	/* Demux Rx objects */
 	switch (rx->type) {
 	case NODE_RX_TYPE_EVENT_DONE:
