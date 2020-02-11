@@ -380,7 +380,7 @@ PIN_Handle PIN_open(PIN_State* state, const PIN_Config pinList[]) {
     }
 
     // Ensure that only one client at a time can call PIN_open() or PIN_add()
-    //SemaphoreP_pend(&pinSemaphore, SemaphoreP_WAIT_FOREVER);
+    SemaphoreP_pend(&pinSemaphore, SemaphoreP_WAIT_FOREVER);
 
     // Check whether all pins in pinList are valid and available first
     for (i = 0; (pinId = PIN_ID(pinList[i])) != PIN_TERMINATE; i++) {
@@ -418,7 +418,7 @@ PIN_Handle PIN_open(PIN_State* state, const PIN_Config pinList[]) {
         }
     }
 
-    //SemaphoreP_post(&pinSemaphore);
+    SemaphoreP_post(&pinSemaphore);
     return state;
 }
 
