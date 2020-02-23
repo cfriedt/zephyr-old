@@ -812,15 +812,15 @@ void isr_radio(void *arg)
 	rfc_bleRadioOp_t *op =
 		(rfc_bleRadioOp_t *)RF_getCmdOp(rfHandle, isr_radio_param->ch);
 
-	if (CMD_BLE_SLAVE == op->commandNo) {
-		/*
+	if ( !( CMD_BLE_ADV == op->commandNo || CMD_NOP == op->commandNo ) ) {
 		BT_DBG("now: %u h: %p ch: %u (%s) e: %" PRIx64, cntr_cnt_get(),
-		       isr_radio_param->h, isr_radio_param->ch,
-		       command_no_to_string(op->commandNo), isr_radio_param->e);
+			   isr_radio_param->h, isr_radio_param->ch,
+			   command_no_to_string(op->commandNo), isr_radio_param->e);
 		describe_event_mask(isr_radio_param->e);
 		describe_ble_status(op->status);
-		*/
+	}
 
+	if (CMD_BLE_SLAVE == op->commandNo) {
 		/* pParams->seqStat.bFirstPkt shall be cleared by the radio CPU.
 		 *
 		 * Best to ensure that automatic CRC checking is restored too.
