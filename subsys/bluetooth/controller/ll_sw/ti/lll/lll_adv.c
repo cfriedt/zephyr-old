@@ -740,7 +740,7 @@ static inline int isr_rx_pdu(struct lll_adv *lll, u8_t devmatch_ok,
 			x->hop,
 			x->sca
 		);
-		BT_DBG( "%s", log_buffer );
+		printk( "%s\n", log_buffer );
 
 		if (IS_ENABLED(CONFIG_BT_CTLR_CHAN_SEL_2)) {
 			rx = ull_pdu_rx_alloc_peek(4);

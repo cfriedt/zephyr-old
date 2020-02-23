@@ -1102,7 +1102,6 @@ void radio_pkt_rx_set(void *rx_packet)
 }
 
 static void radio_enqueue_tx_pdu(const void *data, const size_t len) {
-
 	//size_t i;
 	//for(i = 0; i < CC13XX_CC26XX_NUM_TX_BUF; ++i) {
 	{
@@ -1393,7 +1392,9 @@ u32_t radio_is_ready(void)
 
 u32_t radio_is_done(void)
 {
-	return radio_trx;
+	u32_t r = radio_trx;
+	radio_trx = 0;
+	return r;
 }
 
 u32_t radio_has_disabled(void)
@@ -1418,15 +1419,12 @@ void radio_crc_configure(u32_t polynomial, u32_t iv)
 
 u32_t radio_crc_is_valid(void)
 {
-#if 0
 	bool r = crc_valid;
 
 	/* only valid for first call */
 	crc_valid = false;
 
 	return r;
-#endif
-	return true;
 }
 
 void *radio_pkt_empty_get(void)
@@ -1701,6 +1699,7 @@ void radio_tmr_aa_capture(void)
 
 u32_t radio_tmr_aa_get(void)
 {
+	BT_DBG("return tmr_aa (%u) - rtc_diff_start_us (%u) = %u", tmr_aa, rtc_diff_start_us, tmr_aa - rtc_diff_start_us);
 	return tmr_aa - rtc_diff_start_us;
 }
 
@@ -1708,16 +1707,19 @@ static u32_t radio_tmr_aa;
 
 void radio_tmr_aa_save(u32_t aa)
 {
+	BT_DBG("set radio_tmr_aa = %u", aa);
 	radio_tmr_aa = aa;
 }
 
 u32_t radio_tmr_aa_restore(void)
 {
+	BT_DBG("return radio_tmr_aa = %u", radio_tmr_aa);
 	return radio_tmr_aa;
 }
 
 u32_t radio_tmr_ready_get(void)
 {
+	BT_DBG("return tmr_ready (%u) - rtc_diff_start_us (%u) = %u", tmr_ready, rtc_diff_start_us, tmr_ready - rtc_diff_start_us);
 	return tmr_ready - rtc_diff_start_us;
 }
 
@@ -1874,7 +1876,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 					const struct pdu_data *pdu_data =
 						(const struct pdu_data *)data;
 					u8_t *features = (u8_t *)pdu_data->llctrl.feature_req.features;
-					static char features_str[ 3 * sizeof( pdu_data->llctrl.feature_req.features ) + 1 ];
+					char features_str[ 3 * sizeof( pdu_data->llctrl.feature_req.features ) + 1 ];
 					snprintf( features_str, sizeof( features_str ), "%02x %02x %02x %02x %02x %02x %02x %02x", features[ 0 ], features[ 1 ], features[ 2 ], features[ 3 ], features[ 4 ], features[ 5 ], features[ 6 ], features[ 7 ] );
 					BT_DBG(
 						"Data PDU\n\t"
@@ -1904,7 +1906,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 						pdu_data->rfu,
 						pdu_data->len,
 						pdu_data->llctrl.opcode,
-						features_str
+						log_strdup(features_str)
 					);
 				}
 
