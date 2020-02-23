@@ -5333,10 +5333,10 @@ static inline int ctrl_rx(memq_link_t *link, struct node_rx_pdu **rx,
 		if (!conn->lll.role ||
 		    !pdu_len_cmp(PDU_DATA_LLCTRL_TYPE_FEATURE_REQ,
 				 pdu_rx->len)) {
-			BT_DBG("conn->lll.role: %u pdu_rx->len: %u", conn->lll.role, pdu_rx->len);
 			goto ull_conn_rx_unknown_rsp_send;
 		}
 
+		BT_DBG("Queueing up PDU_DATA_LLCTRL_TYPE_FEATURE_RSP");
 		nack = feature_rsp_send(conn, *rx, pdu_rx);
 		break;
 
