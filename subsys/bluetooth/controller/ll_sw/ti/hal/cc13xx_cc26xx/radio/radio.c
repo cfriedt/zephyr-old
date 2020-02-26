@@ -322,7 +322,7 @@ static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
 			.bIncludeLenByte = !!CC13XX_CC26XX_INCLUDE_LEN_BYTE,
 			.bIncludeCrc = !!CC13XX_CC26XX_INCLUDE_CRC,
 			.bAppendRssi = !!CC13XX_CC26XX_APPEND_RSSI,
-			.bAppendTimestamp = CC13XX_CC26XX_APPEND_RSSI,
+			.bAppendTimestamp = !!CC13XX_CC26XX_APPEND_TIMESTAMP,
 		},
 		.advConfig = {
 			/* Support Channel Selection Algorithm #2 */
@@ -354,7 +354,7 @@ static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
 			.bIncludeLenByte = !!CC13XX_CC26XX_INCLUDE_LEN_BYTE,
 			.bIncludeCrc = !!CC13XX_CC26XX_INCLUDE_CRC,
 			.bAppendRssi = !!CC13XX_CC26XX_APPEND_RSSI,
-			.bAppendTimestamp = CC13XX_CC26XX_APPEND_RSSI,
+			.bAppendTimestamp = !!CC13XX_CC26XX_APPEND_TIMESTAMP,
 		},
 		.endTrigger = {
 			.triggerType = TRIG_NEVER,
@@ -392,18 +392,17 @@ static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
 		.rxConfig = {
 			.bAutoFlushIgnored = true,
 			.bAutoFlushCrcErr = true,
-			/* SCAN_REQ will be discarded if true! */
-			.bAutoFlushEmpty = false,
+			.bAutoFlushEmpty = true,
 			.bIncludeLenByte = !!CC13XX_CC26XX_INCLUDE_LEN_BYTE,
 			.bIncludeCrc = !!CC13XX_CC26XX_INCLUDE_CRC,
 			.bAppendRssi = !!CC13XX_CC26XX_APPEND_RSSI,
-			.bAppendTimestamp = CC13XX_CC26XX_APPEND_RSSI,
+			.bAppendTimestamp = !!CC13XX_CC26XX_APPEND_TIMESTAMP,
 		},
 		.seqStat = {
 			.bFirstPkt = true,
 		},
 		.timeoutTrigger = {
-			.triggerType = TRIG_NEVER,
+			.triggerType = TRIG_REL_START,
 		},
 		.endTrigger = {
 			.triggerType = TRIG_NEVER,
@@ -1955,18 +1954,23 @@ void radio_set_scan_rsp_data(u8_t *data, u8_t len)
 void radio_set_up_slave_cmd(void)
 {
 	BT_DBG("now: %u", cntr_cnt_get());
+
 	drv_data->cmd_ble_slave_param.accessAddress = drv_data->access_address;
-	drv_data->cmd_ble_slave_param.crcInit0 =
-		(drv_data->polynomial >> 0) & 0xff;
-	drv_data->cmd_ble_slave_param.crcInit1 =
-		(drv_data->polynomial >> 8) & 0xff;
-	drv_data->cmd_ble_slave_param.crcInit2 =
-		(drv_data->polynomial >> 16) & 0xff;
+	drv_data->cmd_ble_slave_param.crcInit0 = (drv_data->polynomial >> 0) & 0xff;
+	drv_data->cmd_ble_slave_param.crcInit1 = (drv_data->polynomial >> 8) & 0xff;
+	drv_data->cmd_ble_slave_param.crcInit2 = (drv_data->polynomial >> 16) & 0xff;
 
 	drv_data->cmd_ble_slave.channel = drv_data->chan;
 
 	next_radio_cmd = (rfc_bleRadioOp_t *)&drv_data->cmd_ble_slave;
 	drv_data->ignore_next_rx = false;
+
+	// timeout of the first receive operation is relative to the CMD_BLE_SLAVE start time
+	if ( drv_data->cmd_ble_slave_param.seqStat.bFirstPkt ) {
+		drv_data->cmd_ble_slave_param.timeoutTime = 10 * drv_data->window_duration_ticks;
+	} else {
+		drv_data->cmd_ble_slave_param.timeoutTime = drv_data->window_duration_ticks;
+	}
 }
 
 void radio_slave_reset(void) {
@@ -1992,7 +1996,7 @@ void radio_slave_reset(void) {
 	drv_data->cmd_ble_slave_param.seqStat.lastTxSn = 1;
 	drv_data->cmd_ble_slave_param.seqStat.nextTxSn = 0;
 	drv_data->cmd_ble_slave_param.seqStat.bFirstPkt = true;
-	drv_data->cmd_ble_slave_param.seqStat.bAutoEmpty = false;
+	drv_data->cmd_ble_slave_param.seqStat.bAutoEmpty = true;
 	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlTx = false;
 	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlAckRx = false;
 	drv_data->cmd_ble_slave_param.seqStat.bLlCtrlAckPending = false;
