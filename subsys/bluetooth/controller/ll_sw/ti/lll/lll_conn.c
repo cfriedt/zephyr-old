@@ -792,7 +792,7 @@ static int isr_rx_pdu(struct lll_conn *lll, struct pdu_data *pdu_data_rx,
 
 static struct pdu_data *empty_tx_enqueue(struct lll_conn *lll)
 {
-	BT_DBG("");
+	BT_DBG("%u", cntr_cnt_get());
 	struct pdu_data *p;
 
 	lll->empty = 1;

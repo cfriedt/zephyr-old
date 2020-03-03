@@ -1614,8 +1614,7 @@ static u32_t radio_tmr_start_hlp(u8_t trx, u32_t ticks_start, u32_t remainder)
 	} else {
 		if (next_radio_cmd != NULL) {
 			/* enable T1_CMP to trigger the SEQCMD */
-			next_radio_cmd->startTime =
-				now + remainder;
+			next_radio_cmd->startTime = now + remainder;
 			next_radio_cmd->startTrigger.triggerType = TRIG_ABSTIME;
 			next_radio_cmd->startTrigger.pastTrig = true;
 			next_radio_cmd->channel = drv_data->chan;
@@ -1869,11 +1868,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 					}
 				} else {
 					// data pdu
-					const struct pdu_data *pdu_data =
-						(const struct pdu_data *)data;
-					u8_t *features = (u8_t *)pdu_data->llctrl.feature_req.features;
-					char features_str[ 3 * sizeof( pdu_data->llctrl.feature_req.features ) + 1 ];
-					snprintf( features_str, sizeof( features_str ), "%02x %02x %02x %02x %02x %02x %02x %02x", features[ 0 ], features[ 1 ], features[ 2 ], features[ 3 ], features[ 4 ], features[ 5 ], features[ 6 ], features[ 7 ] );
+					const struct pdu_data *pdu_data = (const struct pdu_data *)data;
 					BT_DBG(
 						"Data PDU\n\t"
 						"len: %u\n\t"
@@ -1887,8 +1882,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 						"md: %u\n\t"
 						"rfu: %u\n\t"
 						"len: %u\n\t"
-						"llctrl.opcode: %02x\n\t"
-						"llctrl.feature_req.features: %s\n"
+						"llctrl.opcode: %02x\n"
 						"}"
 						,
 						len,
@@ -1901,15 +1895,13 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 						pdu_data->md,
 						pdu_data->rfu,
 						pdu_data->len,
-						pdu_data->llctrl.opcode,
-						log_strdup(features_str)
+						pdu_data->llctrl.opcode
 					);
 				}
 
 				LL_ASSERT(rx_pkt_ptr != NULL);
 
-				memcpy(rx_pkt_ptr, data, MIN(len,
-						payload_max_size));
+				memcpy(rx_pkt_ptr, data, MIN(len, payload_max_size));
 
 				radio_trx = 1;
 				once = true;
@@ -1964,6 +1956,7 @@ void radio_set_up_slave_cmd(void)
 
 	// timeout of the first receive operation is relative to the CMD_BLE_SLAVE start time
 	if ( drv_data->cmd_ble_slave_param.seqStat.bFirstPkt ) {
+		// widen the window (FIXME: use proper widening formula)
 		drv_data->cmd_ble_slave_param.timeoutTime = 10 * drv_data->window_duration_ticks;
 	} else {
 		drv_data->cmd_ble_slave_param.timeoutTime = drv_data->window_duration_ticks;
