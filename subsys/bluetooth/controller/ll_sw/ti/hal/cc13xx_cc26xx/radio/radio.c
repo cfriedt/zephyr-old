@@ -2029,6 +2029,7 @@ static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask 
 
 static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
 
+	/*
 	BT_DBG( "TX Window: [%u,%u] ticks (%u us) every %u ticks (%u us)",
 		begin,
 		begin + duration,
@@ -2036,6 +2037,7 @@ static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
 		interval,
 		HAL_TICKER_TICKS_TO_US(interval)
 	);
+	*/
 
 	drv_data->window_begin_ticks = begin;
 	drv_data->window_duration_ticks = duration;
