@@ -1975,7 +1975,8 @@ void radio_slave_reset(void) {
 	 *  determines anchor point for the first connection event, and therefore
 	 *  the timings of all future connection events in this connection.
 	 */
-	drv_data->cmd_ble_slave_param.rxConfig.bAutoFlushCrcErr = false;
+	// XXX: @CJF: 20200506: disabling this for now to uncomplicate initial bringup
+	//drv_data->cmd_ble_slave_param.rxConfig.bAutoFlushCrcErr = false;
 
 	/* See TRM 25.8.5: Link Layer Connection
 	 *
