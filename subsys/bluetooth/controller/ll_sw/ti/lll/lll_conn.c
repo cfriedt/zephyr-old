@@ -170,8 +170,7 @@ void lll_conn_isr_rx(void *param)
 	radio_tmr_status_reset();
 	radio_rssi_status_reset();
 
-#if defined(CONFIG_BT_CTLR_GPIO_PA_PIN) || \
-	defined(CONFIG_BT_CTLR_GPIO_LNA_PIN)
+#if defined(CONFIG_BT_CTLR_GPIO_PA_PIN) || defined(CONFIG_BT_CTLR_GPIO_LNA_PIN)
 	radio_gpio_pa_lna_disable();
 #endif /* CONFIG_BT_CTLR_GPIO_PA_PIN || CONFIG_BT_CTLR_GPIO_LNA_PIN */
 
