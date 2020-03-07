@@ -1388,9 +1388,7 @@ u32_t radio_is_ready(void)
 
 u32_t radio_is_done(void)
 {
-	u32_t r = radio_trx;
-	radio_trx = 0;
-	return r;
+	return radio_trx;
 }
 
 u32_t radio_has_disabled(void)
@@ -1812,6 +1810,15 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 				size_t offs = it->pData[0];
 				u8_t *data = &it->pData[1];
 
+				bool pdu_is_adv = drv_data->access_address == PDU_AC_ACCESS_ADDR;
+				if ( pdu_is_adv ) {
+					struct pdu_adv *pdu_rx = (struct pdu_adv *)data;
+					if ( PDU_ADV_TYPE_CONNECT_IND == pdu_rx->type ) {
+						offs++;
+						offs--;
+					}
+				}
+
 				ratmr_t timestamp = 0;
 
 				timestamp |= data[--offs] << 24;
@@ -1838,7 +1845,7 @@ static void pkt_rx(const struct isr_radio_param *isr_radio_param)
 					HAL_TICKER_US_TO_TICKS(len +
 						sizeof(crc - 1));
 
-				bool pdu_is_adv = drv_data->access_address == PDU_AC_ACCESS_ADDR;
+				pdu_is_adv = drv_data->access_address == PDU_AC_ACCESS_ADDR;
 				if ( pdu_is_adv ) {
 					struct pdu_adv *pdu_rx = (struct pdu_adv *)data;
 					if ( PDU_ADV_TYPE_CONNECT_IND == pdu_rx->type ) {
@@ -2028,6 +2035,7 @@ static void transmit_window_callback(RF_Handle h, RF_RatHandle rh, RF_EventMask 
 
 static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
 
+	/*
 	BT_DBG( "TX Window: [%u,%u] ticks (%u us) every %u ticks (%u us)",
 		begin,
 		begin + duration,
@@ -2035,6 +2043,7 @@ static void transmit_window_debug(u32_t begin, u32_t duration, u32_t interval) {
 		interval,
 		HAL_TICKER_TICKS_TO_US(interval)
 	);
+	*/
 
 	drv_data->window_begin_ticks = begin;
 	drv_data->window_duration_ticks = duration;
