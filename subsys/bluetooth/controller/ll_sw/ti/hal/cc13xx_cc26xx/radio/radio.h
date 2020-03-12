@@ -13,11 +13,8 @@
 
 typedef void (*radio_isr_cb_t)(void *param);
 
-void isr_radio(void *arg);
-#define radio_isr_set(cb, param)                                               \
-	__radio_isr_set(__FILE__, __func__, __LINE__, #cb, cb, param)
-void __radio_isr_set(const char *file, const char *fn, int line,
-		     const char *cb_name, radio_isr_cb_t cb, void *param);
+void isr_radio(void);
+extern void radio_isr_set(radio_isr_cb_t cb, void *param);
 
 void radio_setup(void);
 void radio_reset(void);
