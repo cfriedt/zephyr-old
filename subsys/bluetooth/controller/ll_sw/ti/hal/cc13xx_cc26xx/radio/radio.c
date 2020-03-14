@@ -44,7 +44,7 @@
 #include "hal/ticker.h"
 #include "hal/swi.h"
 
-#define BT_DBG_ENABLED 0
+#define BT_DBG_ENABLED 1
 #define LOG_MODULE_NAME bt_ctlr_hal_ti_radio
 #include "common/log.h"
 #include "hal/debug.h"
@@ -414,7 +414,7 @@ void isr_radio(void)
 {
 	DEBUG_RADIO_ISR(1);
 
-	BT_DBG("");
+	//BT_DBG("");
 	isr_cb(isr_cb_param);
 
 	DEBUG_RADIO_ISR(0);
@@ -423,7 +423,7 @@ void isr_radio(void)
 void __radio_isr_set(radio_isr_cb_t cb, void *param, const char *file, const char *func, int line, const char *cb_name)
 {
 	(void) file;
-	BT_DBG("%s(): %d: set cb to %s()", func, line, cb_name);
+	//BT_DBG("%s(): %d: set cb to %s()", func, line, cb_name);
 	irq_disable(LL_RADIO_IRQn);
 
 	isr_cb_param = param;
@@ -696,7 +696,7 @@ static const RF_TxPowerTable_Entry RF_BLE_txPowerTable[] = {
 
 static void update_adv_data(u8_t *data, u8_t len, bool scan_rsp)
 {
-	//BT_DBG("");
+	////BT_DBG("");
 
 	if (NULL == data || 0 == len) {
 		len = 0;
@@ -716,14 +716,14 @@ static void update_adv_data(u8_t *data, u8_t len, bool scan_rsp)
 
 void radio_set_scan_rsp_data(u8_t *data, u8_t len)
 {
-	//BT_DBG("");
+	////BT_DBG("");
 	update_adv_data(data, len, true);
 }
 
 
 
 static void rx_queue_reset(void) {
-	BT_DBG("");
+	//BT_DBG("");
 	/* Setup circular RX queue (TRM 25.3.2.7) */
 	memset(&drv_data->rx_entry[0], 0, sizeof(drv_data->rx_entry[0]));
 	memset(&drv_data->rx_entry[1], 0, sizeof(drv_data->rx_entry[1]));
@@ -747,7 +747,7 @@ static void rx_queue_reset(void) {
 }
 
 static void tx_queue_reset(void) {
-	BT_DBG("");
+	//BT_DBG("");
 	/* Setup circular TX queue (TRM 25.3.2.7) */
 	memset(&drv_data->tx_entry[0], 0, sizeof(drv_data->tx_entry[0]));
 	memset(&drv_data->tx_entry[1], 0, sizeof(drv_data->tx_entry[1]));
@@ -774,7 +774,7 @@ static void tx_queue_reset(void) {
 static void rat_deferred_hcto_callback(RF_Handle h, RF_RatHandle rh,
 				       RF_EventMask e, u32_t compareCaptureTime)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	RF_cancelCmd(drv_data->rfHandle, drv_data->active_command_handle,
 		     RF_ABORT_GRACEFULLY);
 	drv_data->active_command_handle = -1;
@@ -782,7 +782,7 @@ static void rat_deferred_hcto_callback(RF_Handle h, RF_RatHandle rh,
 
 static void ble_cc13xx_cc26xx_data_init(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	RF_Params_init( & drv_data->rfParams );
 
 	/* FIXME: this duplicates code in controller/hci/hci.c
@@ -802,8 +802,7 @@ static void ble_cc13xx_cc26xx_data_init(void)
 	/* BT_ADDR_SET_STATIC(a) */
 	mac[5] |= 0xc0;
 	drv_data->cmd_ble_adv_param.pDeviceAddress = (u16_t *)mac;
-	BT_DBG("device address: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1],
-	       mac[2], mac[3], mac[4], mac[5]);
+	//BT_DBG("device address: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	/* Ensure that this address is marked as _random_ */
 	drv_data->cmd_ble_adv_param.advConfig.deviceAddrType = 1;
 
@@ -819,7 +818,7 @@ static void ble_cc13xx_cc26xx_data_init(void)
 static void set_frequency_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e) {
 	(void) h;
 	(void) ch;
-	//BT_DBG("");
+	////BT_DBG("");
 	//rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
 	//describe_ble_status(op->status);
 	//describe_event_mask(e);
@@ -832,7 +831,7 @@ static void set_frequency_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask 
 
 void radio_setup(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	ble_cc13xx_cc26xx_data_init();
 
 	drv_data->rfHandle = RF_open( & drv_data->rfObject, & drv_data->RF_modeBle,
@@ -855,7 +854,7 @@ void radio_setup(void)
 
 void radio_reset(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	irq_disable(LL_RADIO_IRQn);
 }
 
@@ -865,37 +864,37 @@ void radio_phy_set(u8_t phy, u8_t flags)
 
 void radio_tx_power_set(u32_t power)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	RF_setTxPower( drv_data->rfHandle, RF_TxPowerTable_findValue( (RF_TxPowerTable_Entry *)RF_BLE_txPowerTable, power ) );
 }
 
 void radio_tx_power_max_set(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	RF_setTxPower( drv_data->rfHandle, RF_TxPowerTable_findValue( (RF_TxPowerTable_Entry *)RF_BLE_txPowerTable, RF_TxPowerTable_MAX_DBM) );
 }
 
 s8_t radio_tx_power_min_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return RF_TxPowerTable_MIN_DBM;
 }
 
 s8_t radio_tx_power_max_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return RF_TxPowerTable_MAX_DBM;
 }
 
 s8_t radio_tx_power_floor(s8_t power)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 }
 
 void radio_freq_chan_set(u32_t chan)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	/*
 	 * The LLL expects the channel number to be computed as
 	 * 2400 + chan [MHz]. Therefore a compensation of -2 MHz
@@ -930,57 +929,57 @@ void radio_freq_chan_set(u32_t chan)
 
 void radio_whiten_iv_set(u32_t iv)
 {
-	BT_DBG("iv: %u", iv);
+	//BT_DBG("iv: %u", iv);
 }
 
 void radio_aa_set(u8_t *aa)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	drv_data->access_address = *(u32_t *)aa;
 }
 
 void radio_pkt_configure(u8_t bits_len, u8_t max_len, u8_t flags)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	drv_data->max_len = max_len;
 }
 
 void radio_pkt_rx_set(void *rx_packet)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	drv_data->rx_entry[ 0 ].pData = rx_packet;
 }
 
 void radio_pkt_tx_set(void *tx_packet)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	drv_data->tx_entry[ 0 ].pData = tx_packet;
 }
 
 u32_t radio_tx_ready_delay_get(u8_t phy, u8_t flags)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 	//return hal_radio_tx_ready_delay_us_get(phy, flags);
 }
 
 u32_t radio_tx_chain_delay_get(u8_t phy, u8_t flags)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 	//return hal_radio_tx_chain_delay_us_get(phy, flags);
 }
 
 u32_t radio_rx_ready_delay_get(u8_t phy, u8_t flags)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 	//return hal_radio_rx_ready_delay_us_get(phy, flags);
 }
 
 u32_t radio_rx_chain_delay_get(u8_t phy, u8_t flags)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	const unsigned Rx_OVHD = 32;
 	const unsigned RX_MARGIN = 8;
 	const unsigned isr_latency = 100;
@@ -990,13 +989,13 @@ u32_t radio_rx_chain_delay_get(u8_t phy, u8_t flags)
 
 void radio_rx_enable(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	//nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RXEN);
 }
 
 void radio_tx_enable(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	//nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
 }
 
@@ -1004,7 +1003,7 @@ static void radio_disable_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask 
 	(void) h;
 	(void) ch;
 	(void) e;
-//	BT_DBG("");
+//	//BT_DBG("");
 //	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
 //	describe_ble_status(op->status);
 //	describe_event_mask(e);
@@ -1052,7 +1051,7 @@ u32_t radio_is_ready(void)
 u32_t radio_is_done(void)
 {
 	BT_DBG("");
-	return drv_data->rfStatus & RF_EventLastCmdDone;
+	return !!(drv_data->rfStatus & RF_EventLastCmdDone);
 }
 
 u32_t radio_has_disabled(void)
@@ -1071,14 +1070,14 @@ u32_t radio_is_idle(void)
 
 void radio_crc_configure(u32_t polynomial, u32_t iv)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	drv_data->polynomial = polynomial;
 	drv_data->iv = iv;
 }
 
 u32_t radio_crc_is_valid(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return !( drv_data->rfStatus & RF_EventRxNOk );
 }
 
@@ -1089,13 +1088,13 @@ static u8_t MALIGN(4) _pkt_scratch[
 
 void *radio_pkt_empty_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return _pkt_empty;
 }
 
 void *radio_pkt_scratch_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return _pkt_scratch;
 }
 
@@ -1119,72 +1118,72 @@ void radio_switch_complete_and_disable(void)
 
 void radio_rssi_measure(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 u32_t radio_rssi_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return RF_getRssi( drv_data->rfHandle );
 }
 
 void radio_rssi_status_reset(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 u32_t radio_rssi_is_ready(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return RF_GET_RSSI_ERROR_VAL != RF_getRssi( drv_data->rfHandle );
 }
 
 void radio_filter_configure(u8_t bitmask_enable, u8_t bitmask_addr_type, u8_t *bdaddr)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 void radio_filter_disable(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 void radio_filter_status_reset(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 u32_t radio_filter_has_match(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 }
 
 u32_t radio_filter_match_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 }
 
 void radio_bc_configure(u32_t n)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 void radio_bc_status_reset(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 u32_t radio_bc_has_match(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 }
 
 void radio_tmr_status_reset(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 void radio_tmr_tifs_set(u32_t tifs)
@@ -1206,10 +1205,24 @@ void radio_tmr_tifs_set(u32_t tifs)
 }
 
 static void cmd_ble_adv_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e) {
-	BT_DBG("");
+
+	if (e & RF_EventTxDone) {
+		BT_DBG("TX SUCCESS \\o/");
+	}
+
+	if (e & RF_EventLastCmdDone) {
+		RF_ratDisableChannel(drv_data->rfHandle, drv_data->rat_hcto_handle);
+	}
+
 	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
 	describe_ble_status(op->status);
 	describe_event_mask(e);
+	drv_data->rfStatus = op->status;
+
+	if (e & (RF_EventRxOk | RF_EventRxEmpty | RF_EventRxEntryDone)) {
+		BT_DBG("RX SUCCESS \\o/");
+	}
+
 	isr_radio();
 }
 
@@ -1274,21 +1287,18 @@ u32_t radio_tmr_start(u8_t trx, u32_t ticks_start, u32_t remainder)
 
 u32_t radio_tmr_start_tick(u8_t trx, u32_t tick)
 {
-	u32_t now = cntr_cnt_get();
-	BT_DBG("now: %u trx: %u tick: %u", now, trx, tick);
+	BT_DBG("");
 	return 0;
 }
 
 void radio_tmr_start_us(u8_t trx, u32_t us)
 {
-	u32_t now = cntr_cnt_get();
-	BT_DBG("now: %u trx: %u us: %u", now, trx, us);
+	BT_DBG("");
 }
 
 u32_t radio_tmr_start_now(u8_t trx)
 {
-	u32_t now = cntr_cnt_get();
-	BT_DBG("now: %u trx: %u", now, trx);
+	BT_DBG("");
 	return 0;
 }
 
@@ -1305,7 +1315,7 @@ void radio_tmr_stop(void)
 
 void radio_tmr_hcto_configure(u32_t hcto)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	drv_data->rat_hcto_compare.timeout = hcto;
 	drv_data->rat_hcto_handle = RF_ratCompare(drv_data->rfHandle, &drv_data->rat_hcto_compare, NULL);
 }
@@ -1368,53 +1378,53 @@ u32_t radio_tmr_sample_get(void)
 
 void *radio_ccm_rx_pkt_set(struct ccm *ccm, u8_t phy, void *pkt)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return NULL;
 }
 
 void *radio_ccm_tx_pkt_set(struct ccm *ccm, void *pkt)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return NULL;
 }
 
 u32_t radio_ccm_is_done(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return false;
 }
 
 u32_t radio_ccm_mic_is_valid(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return false;
 }
 
 void radio_ar_configure(u32_t nirk, void *irk)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 u32_t radio_ar_match_get(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return 0;
 }
 
 void radio_ar_status_reset(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 }
 
 u32_t radio_ar_has_match(void)
 {
-	BT_DBG("");
+	//BT_DBG("");
 	return false;
 }
 
 void radio_slave_reset(void) {
 
-	BT_DBG("");
+	//BT_DBG("");
 
 	/*
 	 *  BLE Core Spec 5.1: 4.5.5 Connection setup - Slave Role
@@ -1451,5 +1461,5 @@ const PowerCC26X2_Config PowerCC26X2_config = {
 };
 
 void radio_set_up_slave_cmd(void) {
-	BT_DBG("");
+	//BT_DBG("");
 }
