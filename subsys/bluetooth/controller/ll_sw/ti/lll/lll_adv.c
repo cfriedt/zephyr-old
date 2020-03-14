@@ -286,6 +286,7 @@ static int is_abort_cb(void *next, int prio, void *curr,
 
 static void abort_cb(struct lll_prepare_param *prepare_param, void *param)
 {
+	return;
 	int err;
 
 	/* NOTE: This is not a prepare being cancelled */

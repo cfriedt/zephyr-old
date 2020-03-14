@@ -155,8 +155,264 @@ struct FrequencyTableEntry {
 	const u8_t whitening;
 };
 
+enum { EVENT_MASK = RF_EventLastCmdDone | RF_EventTxDone | RF_EventRxEntryDone |
+		    RF_EventRxEmpty | RF_EventRxOk,
+};
+
 static radio_isr_cb_t isr_cb;
 static void           *isr_cb_param;
+
+static void describe_ble_status(u16_t status)
+{
+	switch (status) {
+	case IDLE:
+		BT_DBG("Operation not started");
+		return;
+	case PENDING:
+		BT_DBG("Start of command is pending");
+		return;
+	case ACTIVE:
+		BT_DBG("Running");
+		return;
+	case SKIPPED:
+		BT_DBG("Operation skipped due to condition in another command");
+		return;
+
+	case DONE_OK:
+		BT_DBG("Operation ended normally");
+		return;
+	case DONE_COUNTDOWN:
+		BT_DBG("Counter reached zero");
+		return;
+	case DONE_RXERR:
+		BT_DBG("Operation ended with CRC error");
+		return;
+	case DONE_TIMEOUT:
+		BT_DBG("Operation ended with timeout");
+		return;
+	case DONE_STOPPED:
+		BT_DBG("Operation stopped after CMD_STOP command");
+		return;
+	case DONE_ABORT:
+		BT_DBG("Operation aborted by CMD_ABORT command");
+		return;
+	case DONE_FAILED:
+		BT_DBG("Scheduled immediate command failed");
+		return;
+
+	case ERROR_PAST_START:
+		BT_DBG("The start trigger occurred in the past");
+		return;
+	case ERROR_START_TRIG:
+		BT_DBG("Illegal start trigger parameter");
+		return;
+	case ERROR_CONDITION:
+		BT_DBG("Illegal condition for next operation");
+		return;
+	case ERROR_PAR:
+		BT_DBG("Error in a command specific parameter");
+		return;
+	case ERROR_POINTER:
+		BT_DBG("Invalid pointer to next operation");
+		return;
+	case ERROR_CMDID:
+		BT_DBG("Next operation has a command ID that is undefined or "
+				"not a radio operation command");
+		return;
+
+	case ERROR_WRONG_BG:
+		BT_DBG("FG level command not compatible with running BG level "
+		       "command");
+		return;
+	case ERROR_NO_SETUP:
+		BT_DBG("Operation using Rx or Tx attempted without "
+				"CMD_RADIO_SETUP");
+		return;
+	case ERROR_NO_FS:
+		BT_DBG("Operation using Rx or Tx attempted without frequency "
+		       "synth configured");
+		return;
+	case ERROR_SYNTH_PROG:
+		BT_DBG("Synthesizer calibration failed");
+		return;
+	case ERROR_TXUNF:
+		BT_DBG("Tx underflow observed");
+		return;
+	case ERROR_RXOVF:
+		BT_DBG("Rx overflow observed");
+		return;
+	case ERROR_NO_RX:
+		BT_DBG("Attempted to access data from Rx when no such data "
+		       "was yet received");
+		return;
+	case ERROR_PENDING:
+		BT_DBG("Command submitted in the future with another command "
+				"at different level pending");
+		return;
+
+	case BLE_DONE_OK:
+		BT_DBG("Operation ended normally");
+		return;
+	case BLE_DONE_RXTIMEOUT:
+		BT_DBG("Timeout of first Rx of slave operation or end of scan "
+				"window");
+		return;
+	case BLE_DONE_NOSYNC:
+		BT_DBG("Timeout of subsequent Rx");
+		return;
+	case BLE_DONE_RXERR:
+		BT_DBG("Operation ended because of receive error (CRC or "
+				"other)");
+		return;
+	case BLE_DONE_CONNECT:
+		BT_DBG("CONNECT_IND or AUX_CONNECT_RSP received or "
+				"transmitted");
+		return;
+	case BLE_DONE_MAXNACK:
+		BT_DBG("Maximum number of retransmissions exceeded");
+		return;
+	case BLE_DONE_ENDED:
+		BT_DBG("Operation stopped after end trigger");
+		return;
+	case BLE_DONE_ABORT:
+		BT_DBG("Operation aborted by command");
+		return;
+	case BLE_DONE_STOPPED:
+		BT_DBG("Operation stopped after stop command");
+		return;
+	case BLE_DONE_AUX:
+		BT_DBG("Operation ended after following aux pointer pointing "
+		       "far ahead");
+		return;
+	case BLE_DONE_CONNECT_CHSEL0:
+		BT_DBG("CONNECT_IND received or transmitted; peer does not "
+		       "support channel selection algorithm #2");
+		return;
+	case BLE_DONE_SCAN_RSP:
+		BT_DBG("SCAN_RSP or AUX_SCAN_RSP transmitted");
+		return;
+	case BLE_ERROR_PAR:
+		BT_DBG("Illegal parameter");
+		return;
+	case BLE_ERROR_RXBUF:
+		BT_DBG("No available Rx buffer (Advertiser, Scanner, "
+				"Initiator)");
+		return;
+	case BLE_ERROR_NO_SETUP:
+		BT_DBG("Operation using Rx or Tx attempted when not in BLE "
+				"mode");
+		return;
+	case BLE_ERROR_NO_FS:
+		BT_DBG("Operation using Rx or Tx attempted without frequency "
+				"synth configured");
+		return;
+	case BLE_ERROR_SYNTH_PROG:
+		BT_DBG("Synthesizer programming failed to complete on time");
+		return;
+	case BLE_ERROR_RXOVF:
+		BT_DBG("Receiver overflowed during operation");
+		return;
+	case BLE_ERROR_TXUNF:
+		BT_DBG("Transmitter underflowed during operation");
+		return;
+	case BLE_ERROR_AUX:
+		BT_DBG("Calculated AUX pointer was too far into the future or "
+				"in the past");
+		return;
+	default:
+		BT_DBG("Unknown status 0x%x", status);
+		return;
+	}
+}
+
+static void describe_event_mask(RF_EventMask e)
+{
+	if (e & RF_EventCmdDone)
+		BT_DBG("A radio operation command in a chain finished.");
+	if (e & RF_EventLastCmdDone)
+		BT_DBG("Last radio operation command in a chain finished.");
+	if (e & RF_EventFGCmdDone)
+		BT_DBG("A IEEE-mode radio operation command in a chain "
+				"finished.");
+	if (e & RF_EventLastFGCmdDone)
+		BT_DBG("A stand-alone IEEE-mode radio operation command or "
+				"the last command in a chain finished.");
+	if (e & RF_EventTxDone)
+		BT_DBG("Packet transmitted");
+	if (e & RF_EventTXAck)
+		BT_DBG("ACK packet transmitted");
+	if (e & RF_EventTxCtrl)
+		BT_DBG("Control packet transmitted");
+	if (e & RF_EventTxCtrlAck)
+		BT_DBG("Acknowledgment received on a transmitted control "
+				"packet");
+	if (e & RF_EventTxCtrlAckAck)
+		BT_DBG("Acknowledgment received on a transmitted control "
+				"packet, and acknowledgment transmitted for that "
+				"packet");
+	if (e & RF_EventTxRetrans)
+		BT_DBG("Packet retransmitted");
+	if (e & RF_EventTxEntryDone)
+		BT_DBG("Tx queue data entry state changed to Finished");
+	if (e & RF_EventTxBufferChange)
+		BT_DBG("A buffer change is complete");
+	if (e & RF_EventPaChanged)
+		BT_DBG("The PA was reconfigured on the fly.");
+	if (e & RF_EventRxOk)
+		BT_DBG("Packet received with CRC OK, payload, and not to "
+				"be ignored");
+	if (e & RF_EventRxNOk)
+		BT_DBG("Packet received with CRC error");
+	if (e & RF_EventRxIgnored)
+		BT_DBG("Packet received with CRC OK, but to be ignored");
+	if (e & RF_EventRxEmpty)
+		BT_DBG("Packet received with CRC OK, not to be ignored, "
+				"no payload");
+	if (e & RF_EventRxCtrl)
+		BT_DBG("Control packet received with CRC OK, not to be "
+				"ignored");
+	if (e & RF_EventRxCtrlAck)
+		BT_DBG("Control packet received with CRC OK, not to be "
+				"ignored, then ACK sent");
+	if (e & RF_EventRxBufFull)
+		BT_DBG("Packet received that did not fit in the Rx queue");
+	if (e & RF_EventRxEntryDone)
+		BT_DBG("Rx queue data entry changing state to Finished");
+	if (e & RF_EventDataWritten)
+		BT_DBG("Data written to partial read Rx buffer");
+	if (e & RF_EventNDataWritten)
+		BT_DBG("Specified number of bytes written to partial read Rx "
+				"buffer");
+	if (e & RF_EventRxAborted)
+		BT_DBG("Packet reception stopped before packet was done");
+	if (e & RF_EventRxCollisionDetected)
+		BT_DBG("A collision was indicated during packet reception");
+	if (e & RF_EventModulesUnlocked)
+		BT_DBG("As part of the boot process, the CM0 has opened access "
+				"to RF core modules and memories");
+	if (e & RF_EventInternalError)
+		BT_DBG("Internal error observed");
+	if (e & RF_EventMdmSoft)
+		BT_DBG("Synchronization word detected (MDMSOFT interrupt "
+				"flag)");
+	if (e & RF_EventCmdCancelled)
+		BT_DBG("Command canceled before it was started.");
+	if (e & RF_EventCmdAborted)
+		BT_DBG("Abrupt command termination caused by RF_cancelCmd() or "
+		       "RF_flushCmd().");
+	if (e & RF_EventCmdStopped)
+		BT_DBG("Graceful command termination caused by RF_cancelCmd() "
+				"or RF_flushCmd().");
+	if (e & RF_EventRatCh)
+		BT_DBG("A user-programmable RAT channel triggered an event.");
+	if (e & RF_EventError)
+		BT_DBG("Event flag used for error callback functions to "
+				"indicate an error. See RF_Params::pErrCb.");
+	if (e & RF_EventCmdPreempted)
+		BT_DBG("Command preempted by another command with higher "
+				"priority. Applies only to multi-client "
+				"applications.");
+}
 
 void isr_radio(void)
 {
@@ -166,9 +422,10 @@ void isr_radio(void)
 	}
 }
 
-void radio_isr_set(radio_isr_cb_t cb, void *param)
+void __radio_isr_set(radio_isr_cb_t cb, void *param, const char *file, const char *func, int line, const char *cb_name)
 {
-	BT_DBG("");
+	(void) file;
+	BT_DBG("%s(): %d: set cb to %s()", func, line, cb_name);
 	irq_disable(LL_RADIO_IRQn);
 
 	isr_cb_param = param;
@@ -527,7 +784,10 @@ static void radio_setup_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 	(void) h;
 	(void) ch;
 	(void) e;
-	//BT_DBG("");
+	BT_DBG("");
+	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
+	describe_ble_status(op->status);
+	describe_event_mask(e);
 	isr_radio();
 }
 
@@ -702,7 +962,10 @@ static void radio_disable_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask 
 	(void) h;
 	(void) ch;
 	(void) e;
-	//BT_DBG("");
+	BT_DBG("");
+	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
+	describe_ble_status(op->status);
+	describe_event_mask(e);
 	isr_radio();
 }
 
@@ -720,8 +983,11 @@ void radio_disable(void)
 	RFCDoorbellSendTo((u32_t)&drv_data->cmd_clear_rx);
 
 	/* generate interrupt to get into isr_radio */
+	RF_CmdHandle rfHandle =
 	RF_postCmd( drv_data->rfHandle, (RF_Op *)&drv_data->cmd_nop, RF_PriorityNormal,
-		   radio_disable_completion, RF_EventLastCmdDone);
+		   radio_disable_completion, EVENT_MASK);
+
+	LL_ASSERT(rfHandle >= 0);
 
 	//next_radio_cmd = NULL;
 }
@@ -902,7 +1168,10 @@ void radio_tmr_tifs_set(u32_t tifs)
 }
 
 static void cmd_ble_adv_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e) {
-	//BT_DBG("");
+	BT_DBG("");
+	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
+	describe_ble_status(op->status);
+	describe_event_mask(e);
 	isr_radio();
 }
 
@@ -914,11 +1183,18 @@ static void pkt_tx( u8_t trx, u32_t ticks_start, u32_t remainder ) {
 	// assume peripheral role
 	if ( PDU_AC_ACCESS_ADDR == drv_data->access_address ) {
 
-		drv_data->cmd_ble_adv.startTrigger.triggerType = TRIG_ABSTIME;
+		drv_data->cmd_ble_adv.startTrigger.triggerType = TRIG_NOW;
 		drv_data->cmd_ble_adv.startTime = ticks_start;
+		drv_data->cmd_ble_adv.startTrigger.pastTrig = true;
+		drv_data->cmd_ble_adv.channel = drv_data->chan;
 
+		BT_DBG("CMD_BLE_ADV");
+
+		RF_CmdHandle rfHandle =
 		RF_postCmd( drv_data->rfHandle, (RF_Op *) & drv_data->cmd_ble_adv,
-				   RF_PriorityNormal, cmd_ble_adv_completion, RF_EventLastCmdDone);
+				   RF_PriorityNormal, cmd_ble_adv_completion, EVENT_MASK);
+
+		LL_ASSERT( rfHandle >= 0 );
 
 	} else {
 	}
@@ -927,7 +1203,7 @@ static void pkt_tx( u8_t trx, u32_t ticks_start, u32_t remainder ) {
 u32_t radio_tmr_start(u8_t trx, u32_t ticks_start, u32_t remainder)
 {
 	u32_t now = cntr_cnt_get();
-	BT_DBG("now: %u trx: %u ticks_start: %u remainder: %u", now, trx, ticks_start, remainder);
+	BT_DBG("now: %u trx: %u ticks_start: %u (in %u us)", now, trx, ticks_start, HAL_TICKER_TICKS_TO_US( ticks_start - now ) );
 
 	if ( trx ) {
 		pkt_tx( trx, ticks_start, remainder );
