@@ -44,7 +44,7 @@
 #include "hal/ticker.h"
 #include "hal/swi.h"
 
-#define BT_DBG_ENABLED 1
+#define BT_DBG_ENABLED 0
 #define LOG_MODULE_NAME bt_ctlr_hal_ti_radio
 #include "common/log.h"
 #include "hal/debug.h"
@@ -153,10 +153,6 @@ struct FrequencyTableEntry {
 	const u16_t frequency;
 	const u16_t fractFreq;
 	const u8_t whitening;
-};
-
-enum { EVENT_MASK = RF_EventLastCmdDone | RF_EventTxDone | RF_EventRxEntryDone |
-		    RF_EventRxEmpty | RF_EventRxOk,
 };
 
 static radio_isr_cb_t isr_cb;
@@ -416,10 +412,12 @@ static void describe_event_mask(RF_EventMask e)
 
 void isr_radio(void)
 {
+	DEBUG_RADIO_ISR(1);
+
 	BT_DBG("");
-	if (radio_has_disabled()) {
-		isr_cb(isr_cb_param);
-	}
+	isr_cb(isr_cb_param);
+
+	DEBUG_RADIO_ISR(0);
 }
 
 void __radio_isr_set(radio_isr_cb_t cb, void *param, const char *file, const char *func, int line, const char *cb_name)
@@ -525,6 +523,7 @@ static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
 	},
 
 	.cmd_ble_adv = {
+		.commandNo = CMD_BLE_ADV,
 		.pParams = (rfc_bleAdvPar_t *)&ble_cc13xx_cc26xx_data
 				   .cmd_ble_adv_param,
 		.pOutput = (rfc_bleAdvOutput_t *)&ble_cc13xx_cc26xx_data
@@ -550,6 +549,7 @@ static struct ble_cc13xx_cc26xx_data ble_cc13xx_cc26xx_data = {
 			/* Support Channel Selection Algorithm #2 */
 			.chSel = IS_ENABLED(CONFIG_BT_CTLR_CHAN_SEL_2),
 		},
+		.pScanRspData = ble_cc13xx_cc26xx_data.scan_rsp_data,
 		.endTrigger = {
 			.triggerType = TRIG_NEVER,
 		},
@@ -694,6 +694,34 @@ static const RF_TxPowerTable_Entry RF_BLE_txPowerTable[] = {
 	RF_TxPowerTable_TERMINATION_ENTRY
 };
 
+static void update_adv_data(u8_t *data, u8_t len, bool scan_rsp)
+{
+	//BT_DBG("");
+
+	if (NULL == data || 0 == len) {
+		len = 0;
+	}
+
+	len = MIN(len, scan_rsp ? sizeof(drv_data->scan_rsp_data) :
+			sizeof(drv_data->adv_data));
+
+	drv_data->cmd_ble_adv_payload.payloadType = scan_rsp;
+
+	drv_data->cmd_ble_adv_payload.newLen = len;
+	drv_data->cmd_ble_adv_payload.pNewData = data;
+
+	u32_t result = RFCDoorbellSendTo((u32_t)&drv_data->cmd_ble_adv_payload);
+	LL_ASSERT(CMDSTA_Done == result);
+}
+
+void radio_set_scan_rsp_data(u8_t *data, u8_t len)
+{
+	//BT_DBG("");
+	update_adv_data(data, len, true);
+}
+
+
+
 static void rx_queue_reset(void) {
 	BT_DBG("");
 	/* Setup circular RX queue (TRM 25.3.2.7) */
@@ -743,6 +771,15 @@ static void tx_queue_reset(void) {
 	drv_data->tx_queue.pLastEntry = NULL;
 }
 
+static void rat_deferred_hcto_callback(RF_Handle h, RF_RatHandle rh,
+				       RF_EventMask e, u32_t compareCaptureTime)
+{
+	BT_DBG("");
+	RF_cancelCmd(drv_data->rfHandle, drv_data->active_command_handle,
+		     RF_ABORT_GRACEFULLY);
+	drv_data->active_command_handle = -1;
+}
+
 static void ble_cc13xx_cc26xx_data_init(void)
 {
 	BT_DBG("");
@@ -775,20 +812,22 @@ static void ble_cc13xx_cc26xx_data_init(void)
 
 	drv_data->active_command_handle = -1;
 
-//	RF_RatConfigCompare_init(
-//		(RF_RatConfigCompare *)&drv_data->rat_hcto_compare);
-//	drv_data->rat_hcto_compare.callback = rat_deferred_hcto_callback;
+	RF_RatConfigCompare_init((RF_RatConfigCompare *)&drv_data->rat_hcto_compare);
+	drv_data->rat_hcto_compare.callback = rat_deferred_hcto_callback;
 }
 
-static void radio_setup_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e) {
+static void set_frequency_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e) {
 	(void) h;
 	(void) ch;
-	(void) e;
-	BT_DBG("");
-	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
-	describe_ble_status(op->status);
-	describe_event_mask(e);
-	isr_radio();
+	//BT_DBG("");
+	//rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
+	//describe_ble_status(op->status);
+	//describe_event_mask(e);
+	// no need for isr_radio() here
+
+	if (e & RF_EventLastCmdDone) {
+		RF_ratDisableChannel(drv_data->rfHandle, drv_data->rat_hcto_handle);
+	}
 }
 
 void radio_setup(void)
@@ -811,7 +850,7 @@ void radio_setup(void)
 	drv_data->chan = 37;
 
 	RF_runCmd( drv_data->rfHandle, (RF_Op *)&drv_data->cmd_set_frequency,
-		  RF_PriorityNormal, radio_setup_completion, RF_EventLastCmdDone );
+		RF_PriorityNormal, set_frequency_completion, RF_EventLastCmdDone );
 }
 
 void radio_reset(void)
@@ -942,7 +981,10 @@ u32_t radio_rx_ready_delay_get(u8_t phy, u8_t flags)
 u32_t radio_rx_chain_delay_get(u8_t phy, u8_t flags)
 {
 	BT_DBG("");
-	return 0;
+	const unsigned Rx_OVHD = 32;
+	const unsigned RX_MARGIN = 8;
+	const unsigned isr_latency = 100;
+	return 16 + 2 * Rx_OVHD + RX_MARGIN + isr_latency + Rx_OVHD;
 	//return hal_radio_rx_chain_delay_us_get(phy, flags);
 }
 
@@ -962,34 +1004,30 @@ static void radio_disable_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask 
 	(void) h;
 	(void) ch;
 	(void) e;
-	BT_DBG("");
-	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
-	describe_ble_status(op->status);
-	describe_event_mask(e);
+//	BT_DBG("");
+//	rfc_bleRadioOp_t *op = (rfc_bleRadioOp_t *)RF_getCmdOp(drv_data->rfHandle, ch);
+//	describe_ble_status(op->status);
+//	describe_event_mask(e);
 	isr_radio();
 }
 
 void radio_disable(void)
 {
 	BT_DBG("");
-	//BT_DBG("now: %u", cntr_cnt_get());
-	/*
-	 * 0b1011..Abort All - Cancels all pending events and abort any
-	 * sequence-in-progress
-	 */
-	RFCDoorbellSendTo(CMDR_DIR_CMD(CMD_ABORT));
+
+	u32_t result = RFCDoorbellSendTo(CMDR_DIR_CMD(CMD_ABORT));
+	LL_ASSERT(CMDSTA_Done == result);
 
 	/* Set all RX entries to empty */
-	RFCDoorbellSendTo((u32_t)&drv_data->cmd_clear_rx);
+	result = RFCDoorbellSendTo((u32_t)&drv_data->cmd_clear_rx);
+	LL_ASSERT(CMDSTA_Done == result);
 
 	/* generate interrupt to get into isr_radio */
-	RF_CmdHandle rfHandle =
+	RF_CmdHandle cmdHandle =
 	RF_postCmd( drv_data->rfHandle, (RF_Op *)&drv_data->cmd_nop, RF_PriorityNormal,
-		   radio_disable_completion, EVENT_MASK);
+		   radio_disable_completion, RF_EventLastCmdDone);
 
-	LL_ASSERT(rfHandle >= 0);
-
-	//next_radio_cmd = NULL;
+	LL_ASSERT(cmdHandle >= 0);
 }
 
 void radio_status_reset(void)
@@ -1176,28 +1214,47 @@ static void cmd_ble_adv_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 }
 
 static void pkt_tx( u8_t trx, u32_t ticks_start, u32_t remainder ) {
+
 	(void) trx;
 
-	BT_DBG("");
+	typedef void (*completion_t)(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
 
-	// assume peripheral role
-	if ( PDU_AC_ACCESS_ADDR == drv_data->access_address ) {
+	const bool pdu_is_adv = PDU_AC_ACCESS_ADDR == drv_data->access_address;
+	rfc_bleRadioOp_t *op = NULL;
+	completion_t cmp = NULL;
 
-		drv_data->cmd_ble_adv.startTrigger.triggerType = TRIG_NOW;
-		drv_data->cmd_ble_adv.startTime = ticks_start;
-		drv_data->cmd_ble_adv.startTrigger.pastTrig = true;
-		drv_data->cmd_ble_adv.channel = drv_data->chan;
+	if ( pdu_is_adv ) {
 
-		BT_DBG("CMD_BLE_ADV");
+		struct pdu_adv *pdu_adv = (struct pdu_adv *)drv_data->tx_entry[ 0 ].pData;
 
-		RF_CmdHandle rfHandle =
-		RF_postCmd( drv_data->rfHandle, (RF_Op *) & drv_data->cmd_ble_adv,
-				   RF_PriorityNormal, cmd_ble_adv_completion, EVENT_MASK);
+		switch( pdu_adv->type ) {
 
-		LL_ASSERT( rfHandle >= 0 );
+		case PDU_ADV_TYPE_ADV_IND:
+			update_adv_data((u8_t *)pdu_adv->adv_ind.data, pdu_adv->len - sizeof(pdu_adv->adv_ind.addr), false);
+			op = (rfc_bleRadioOp_t *) & drv_data->cmd_ble_adv;
+			cmp = cmd_ble_adv_completion;
+			break;
+
+		default:
+			break;
+		}
 
 	} else {
 	}
+
+	LL_ASSERT(NULL != op);
+	LL_ASSERT(NULL != cmp);
+
+	op->startTrigger.triggerType = TRIG_ABSTIME;
+	op->startTrigger.pastTrig = true; // this is *not* OK. It really just means the stack latency is out of control
+	op->startTime = ticks_start;
+	op->channel = drv_data->chan;
+
+	LL_ASSERT(irq_is_enabled(LL_RADIO_IRQn));
+
+	drv_data->active_command_handle = RF_postCmd( drv_data->rfHandle, (RF_Op *) op, RF_PriorityNormal, cmp, -1);
+
+	LL_ASSERT( drv_data->active_command_handle >= 0 );
 }
 
 u32_t radio_tmr_start(u8_t trx, u32_t ticks_start, u32_t remainder)
@@ -1249,6 +1306,8 @@ void radio_tmr_stop(void)
 void radio_tmr_hcto_configure(u32_t hcto)
 {
 	BT_DBG("");
+	drv_data->rat_hcto_compare.timeout = hcto;
+	drv_data->rat_hcto_handle = RF_ratCompare(drv_data->rfHandle, &drv_data->rat_hcto_compare, NULL);
 }
 
 void radio_tmr_aa_capture(void)
@@ -1351,29 +1410,6 @@ u32_t radio_ar_has_match(void)
 {
 	BT_DBG("");
 	return false;
-}
-
-static void update_adv_data(u8_t *data, u8_t len, bool scan_rsp)
-{
-	BT_DBG("");
-	drv_data->cmd_ble_adv_payload.payloadType = scan_rsp;
-
-	if (NULL == data || 0 == len) {
-		len = 0;
-	}
-
-	drv_data->cmd_ble_adv_payload.newLen =
-		MIN(len, scan_rsp ? sizeof(drv_data->scan_rsp_data) :
-				    sizeof(drv_data->adv_data));
-	drv_data->cmd_ble_adv_payload.pNewData = data;
-
-	RFCDoorbellSendTo((u32_t)&drv_data->cmd_ble_adv_payload);
-}
-
-void radio_set_scan_rsp_data(u8_t *data, u8_t len)
-{
-	BT_DBG("");
-	update_adv_data(data, len, true);
 }
 
 void radio_slave_reset(void) {
