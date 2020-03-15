@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdbool.h>
+
 #include <sys/dlist.h>
 #include <sys/mempool_base.h>
 #include <toolchain.h>
@@ -97,6 +99,8 @@ struct ble_cc13xx_cc26xx_data {
 	u8_t scan_rsp_data[sizeof((struct pdu_adv_scan_rsp *)0)->data];
 #endif
 	u8_t scan_rsp_data_len;
+	s8_t rssi;
+	void *rx_packet;
 
 	RF_EventMask rx_mask;
 
@@ -154,6 +158,10 @@ struct FrequencyTableEntry {
 	const u16_t fractFreq;
 	const u8_t whitening;
 };
+
+static void pkt_rx( u8_t trx, u32_t ticks_start, u32_t remainder );
+static void pkt_tx( u8_t trx, u32_t ticks_start, u32_t remainder );
+static void rx_once(void);
 
 static radio_isr_cb_t isr_cb;
 static void           *isr_cb_param;
@@ -771,7 +779,7 @@ static void tx_queue_reset(void) {
 	drv_data->tx_queue.pLastEntry = NULL;
 }
 
-static void rat_deferred_hcto_callback(RF_Handle h, RF_RatHandle rh,
+static void radio_hcto_callback(RF_Handle h, RF_RatHandle rh,
 				       RF_EventMask e, u32_t compareCaptureTime)
 {
 	//BT_DBG("");
@@ -812,7 +820,7 @@ static void ble_cc13xx_cc26xx_data_init(void)
 	drv_data->active_command_handle = -1;
 
 	RF_RatConfigCompare_init((RF_RatConfigCompare *)&drv_data->rat_hcto_compare);
-	drv_data->rat_hcto_compare.callback = rat_deferred_hcto_callback;
+	drv_data->rat_hcto_compare.callback = radio_hcto_callback;
 }
 
 static void set_frequency_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e) {
@@ -947,7 +955,7 @@ void radio_pkt_configure(u8_t bits_len, u8_t max_len, u8_t flags)
 void radio_pkt_rx_set(void *rx_packet)
 {
 	//BT_DBG("");
-	drv_data->rx_entry[ 0 ].pData = rx_packet;
+	drv_data->rx_packet = rx_packet;
 }
 
 void radio_pkt_tx_set(void *tx_packet)
@@ -1035,6 +1043,7 @@ void radio_status_reset(void)
 	// FIXME: determine the precise definition of "status"
 	rx_queue_reset();
 	tx_queue_reset();
+	drv_data->rfStatus = 0;
 	// NRF_RADIO->EVENTS_READY = 0;
 	// NRF_RADIO->EVENTS_END = 0;
 	// NRF_RADIO->EVENTS_DISABLED = 0;
@@ -1124,18 +1133,19 @@ void radio_rssi_measure(void)
 u32_t radio_rssi_get(void)
 {
 	//BT_DBG("");
-	return RF_getRssi( drv_data->rfHandle );
+	return drv_data->rssi;
 }
 
 void radio_rssi_status_reset(void)
 {
 	//BT_DBG("");
+	drv_data->rssi = RF_GET_RSSI_ERROR_VAL;
 }
 
 u32_t radio_rssi_is_ready(void)
 {
 	//BT_DBG("");
-	return RF_GET_RSSI_ERROR_VAL != RF_getRssi( drv_data->rfHandle );
+	return RF_GET_RSSI_ERROR_VAL != drv_data->rssi;
 }
 
 void radio_filter_configure(u8_t bitmask_enable, u8_t bitmask_addr_type, u8_t *bdaddr)
@@ -1221,53 +1231,10 @@ static void cmd_ble_adv_completion(RF_Handle h, RF_CmdHandle ch, RF_EventMask e)
 
 	if (e & (RF_EventRxOk | RF_EventRxEmpty | RF_EventRxEntryDone)) {
 		BT_DBG("RX SUCCESS \\o/");
+		rx_once();
 	}
 
 	isr_radio();
-}
-
-static void pkt_tx( u8_t trx, u32_t ticks_start, u32_t remainder ) {
-
-	(void) trx;
-
-	typedef void (*completion_t)(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
-
-	const bool pdu_is_adv = PDU_AC_ACCESS_ADDR == drv_data->access_address;
-	rfc_bleRadioOp_t *op = NULL;
-	completion_t cmp = NULL;
-
-	if ( pdu_is_adv ) {
-
-		struct pdu_adv *pdu_adv = (struct pdu_adv *)drv_data->tx_entry[ 0 ].pData;
-
-		switch( pdu_adv->type ) {
-
-		case PDU_ADV_TYPE_ADV_IND:
-			update_adv_data((u8_t *)pdu_adv->adv_ind.data, pdu_adv->len - sizeof(pdu_adv->adv_ind.addr), false);
-			op = (rfc_bleRadioOp_t *) & drv_data->cmd_ble_adv;
-			cmp = cmd_ble_adv_completion;
-			break;
-
-		default:
-			break;
-		}
-
-	} else {
-	}
-
-	LL_ASSERT(NULL != op);
-	LL_ASSERT(NULL != cmp);
-
-	op->startTrigger.triggerType = TRIG_ABSTIME;
-	op->startTrigger.pastTrig = true; // this is *not* OK. It really just means the stack latency is out of control
-	op->startTime = ticks_start;
-	op->channel = drv_data->chan;
-
-	LL_ASSERT(irq_is_enabled(LL_RADIO_IRQn));
-
-	drv_data->active_command_handle = RF_postCmd( drv_data->rfHandle, (RF_Op *) op, RF_PriorityNormal, cmp, -1);
-
-	LL_ASSERT( drv_data->active_command_handle >= 0 );
 }
 
 u32_t radio_tmr_start(u8_t trx, u32_t ticks_start, u32_t remainder)
@@ -1462,4 +1429,111 @@ const PowerCC26X2_Config PowerCC26X2_config = {
 
 void radio_set_up_slave_cmd(void) {
 	//BT_DBG("");
+}
+
+static void pkt_tx( u8_t trx, u32_t ticks_start, u32_t remainder ) {
+
+	(void) trx;
+
+	typedef void (*completion_t)(RF_Handle h, RF_CmdHandle ch, RF_EventMask e);
+
+	const bool pdu_is_adv = PDU_AC_ACCESS_ADDR == drv_data->access_address;
+	rfc_bleRadioOp_t *op = NULL;
+	completion_t cmp = NULL;
+
+	if ( pdu_is_adv ) {
+
+		struct pdu_adv *pdu_adv = (struct pdu_adv *)drv_data->tx_entry[ 0 ].pData;
+
+		switch( pdu_adv->type ) {
+
+		case PDU_ADV_TYPE_ADV_IND:
+			update_adv_data((u8_t *)pdu_adv->adv_ind.data, pdu_adv->len - sizeof(pdu_adv->adv_ind.addr), false);
+			op = (rfc_bleRadioOp_t *) & drv_data->cmd_ble_adv;
+			cmp = cmd_ble_adv_completion;
+			break;
+
+		default:
+			break;
+		}
+
+	} else {
+	}
+
+	LL_ASSERT(NULL != op);
+	LL_ASSERT(NULL != cmp);
+
+	op->startTrigger.triggerType = TRIG_ABSTIME;
+	op->startTrigger.pastTrig = true; // this is *not* OK. It really just means the stack latency is out of control
+	op->startTime = ticks_start;
+	op->channel = drv_data->chan;
+
+	LL_ASSERT(irq_is_enabled(LL_RADIO_IRQn));
+
+	drv_data->active_command_handle = RF_postCmd( drv_data->rfHandle, (RF_Op *) op, RF_PriorityNormal, cmp, -1);
+
+	LL_ASSERT( drv_data->active_command_handle >= 0 );
+}
+
+static void pkt_rx( u8_t trx, u32_t ticks_start, u32_t remainder ) {
+	(void) trx;
+	(void) ticks_start;
+	(void) remainder;
+}
+
+static bool crc_is_valid(const u32_t hw_crc, uint8_t *data, size_t len) {
+	(void) hw_crc;
+	(void) data;
+	(void) len;
+	return false;
+}
+
+static void rx_once(void) {
+
+	BT_DBG("");
+
+	struct ble_cc13xx_cc26xx_data *dd = drv_data;
+
+	bool once = false;
+	rfc_dataEntryPointer_t *it;
+	for (size_t i = 0; i < CC13XX_CC26XX_NUM_RX_BUF; it->status = DATA_ENTRY_PENDING, ++i) {
+
+		it = & dd->rx_entry[i];
+
+		if (DATA_ENTRY_FINISHED == it->status) {
+			if (!once) {
+
+				size_t offs = it->pData[0];
+				u8_t *data = &it->pData[1];
+
+				ratmr_t timestamp = 0;
+
+				timestamp |= data[--offs] << 24;
+				timestamp |= data[--offs] << 16;
+				timestamp |= data[--offs] << 8;
+				timestamp |= data[--offs] << 0;
+
+				dd->rssi = (s8_t)data[--offs];
+
+				u32_t crc = 0;
+
+				crc |= data[--offs] << 16;
+				crc |= data[--offs] << 8;
+				crc |= data[--offs] << 0;
+
+				LL_ASSERT(NULL != drv_data->rx_packet);
+				size_t len = offs + 1;
+				memcpy(drv_data->rx_packet, data, MIN(len, drv_data->max_len));
+
+				crc_is_valid(crc, data, len);
+
+				//dd->rtc_start = timestamp;
+
+				/* Add to AA time, PDU + CRC time */
+				//dd->isr_tmr_end = drv_data->rtc_start + HAL_TICKER_US_TO_TICKS(len + sizeof(crc - 1));
+
+				once = true;
+			}
+		}
+	}
 }
