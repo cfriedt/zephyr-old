@@ -33,7 +33,7 @@
 #include "gpio-gb.h"
 
 #include <sys/byteorder.h>
-#include <gpio.h>
+#include <drivers/gpio.h>
 
 #include <greybus-utils/platform.h>
 
