@@ -4,4 +4,6 @@ cmake_minimum_required(VERSION 3.13.1)
 include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
 project(greybus)
 
-target_sources(app PRIVATE src/main.c src/gpio-cc13x2r1-launchxl.c)
+# I have a feeling that this is fairly platform independent. We're just using the Zephyr GPIO APIs
+# target_sources(app PRIVATE src/main.c src/gpio-cc13x2r1-launchxl.c)
+target_sources(app PRIVATE src/main.c src/gpio-nrf52840.c)

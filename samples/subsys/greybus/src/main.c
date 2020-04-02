@@ -7,6 +7,7 @@
 #include <console/console.h>
 #include <console/tty.h>
 #include <device.h>
+#include <devicetree.h>
 #include <drivers/gpio.h>
 #include <errno.h>
 #include <greybus/debug.h>
@@ -224,8 +225,14 @@ static const struct gb_transport_backend gb_xport = {
 };
 
 static void register_gb_platform_drivers() {
+	// I think that this is just platform independent
+#if 0
 	extern const struct gb_gpio_platform_driver gb_gpio_cc13x2r;
 	gb_gpio_register_platform_driver((struct gb_gpio_platform_driver *)&gb_gpio_cc13x2r);
+#else
+	extern const struct gb_gpio_platform_driver gb_gpio_nrf52840;
+	gb_gpio_register_platform_driver((struct gb_gpio_platform_driver *)&gb_gpio_nrf52840);
+#endif
 }
 
 static void blink(struct device *dev, unsigned pin, size_t count, size_t delay) {
