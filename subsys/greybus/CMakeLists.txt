@@ -2,6 +2,8 @@
 
 zephyr_library()
 
+target_include_directories(subsys__greybus INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
 zephyr_library_sources(
 	greybus-stubs.c
 	greybus-core.c
