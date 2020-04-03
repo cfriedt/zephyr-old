@@ -28,8 +28,7 @@ enum {
 };
 
 static struct tty_serial app_serial;
-//static u8_t app_serial_rxbuf[CONFIG_CONSOLE_GETCHAR_BUFSIZE];
-static u8_t app_serial_rxbuf[256];
+static u8_t app_serial_rxbuf[CONFIG_CONSOLE_GETCHAR_BUFSIZE];
 static u8_t app_serial_txbuf[CONFIG_CONSOLE_PUTCHAR_BUFSIZE];
 
 static int getMessage( struct gb_operation_hdr **msg, const u8_t expected_msg_type) {
