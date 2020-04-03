@@ -229,12 +229,11 @@ static void register_gb_platform_drivers() {
 }
 
 static void blink(struct device *dev, unsigned pin, size_t count, size_t delay) {
-	u32_t state;
-	gpio_pin_read(dev, pin, &state);
+	u32_t state = gpio_pin_get(dev, pin);
 	for(size_t i = 0; i < count; i++) {
-		gpio_pin_write(dev, pin, !state);
+		gpio_pin_set(dev, pin, !state);
 		usleep(delay);
-		gpio_pin_write(dev, pin, state);
+		gpio_pin_set(dev, pin, state);
 		usleep(delay);
 	}
 }
@@ -252,13 +251,13 @@ void main(void)
 	const unsigned red_led_pin = DT_ALIAS_LED1_GPIOS_PIN;
 	red_led_dev = device_get_binding(DT_ALIAS_LED1_GPIOS_CONTROLLER);
 	assert(NULL != red_led_dev);
-	gpio_pin_configure(red_led_dev, red_led_pin, GPIO_DIR_OUT);
+	gpio_pin_configure(red_led_dev, red_led_pin, GPIO_OUTPUT);
 
 	struct device *green_led_dev;
 	const unsigned green_led_pin = DT_ALIAS_LED0_GPIOS_PIN;
 	green_led_dev = device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);
 	assert(NULL != green_led_dev);
-	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_DIR_IN);
+	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_INPUT);
 
 	const char *app_serial_name = "UART_0";
 	struct device *uart_dev;
@@ -371,7 +370,7 @@ start_over:
 #endif
 
 	// Turn on the red LED to indicate the device is 'online'
-	gpio_pin_write(red_led_dev, red_led_pin, 1);
+	gpio_pin_set(red_led_dev, red_led_pin, 1);
 
 	gb_info("Greybus is active.\n");
 
@@ -433,7 +432,7 @@ static int gb_gpio_sample_direction_in(uint8_t which) {
 
 	struct device *green_led_dev;
 	green_led_dev = device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);
-	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_DIR_IN);
+	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_INPUT);
 
 	return 0;
 }
@@ -445,8 +444,8 @@ static int gb_gpio_sample_direction_out(uint8_t which, uint8_t val) {
 
 	struct device *green_led_dev;
 	green_led_dev = device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);
-	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_DIR_OUT);
-	gpio_pin_write(green_led_dev, green_led_pin, val);
+	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_OUTPUT);
+	gpio_pin_set(green_led_dev, green_led_pin, val);
 
 	return 0;
 }
@@ -458,9 +457,7 @@ static int gb_gpio_sample_get_value(uint8_t which) {
 
 	struct device *green_led_dev;
 	green_led_dev = device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);
-	u32_t value;
-	gpio_pin_read(green_led_dev, green_led_pin, &value);
-	return value;
+	return gpio_pin_get(green_led_dev, green_led_pin);
 }
 static int gb_gpio_sample_set_value(uint8_t which, uint8_t val) {
 
@@ -470,7 +467,7 @@ static int gb_gpio_sample_set_value(uint8_t which, uint8_t val) {
 
 	struct device *green_led_dev;
 	green_led_dev = device_get_binding(DT_ALIAS_LED0_GPIOS_CONTROLLER);
-	gpio_pin_write(green_led_dev, green_led_pin, val);
+	gpio_pin_set(green_led_dev, green_led_pin, val);
 
 	return 0;
 }
