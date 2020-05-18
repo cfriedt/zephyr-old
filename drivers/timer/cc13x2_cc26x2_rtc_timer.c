@@ -193,9 +193,11 @@ int z_clock_driver_init(struct device *device)
 	startDevice();
 
 	/* Enable RTC interrupt. */
+#if 0
 	IRQ_CONNECT(DT_INST_IRQN(0),
 		DT_INST_IRQ(0, priority),
 		rtc_isr, 0, 0);
+#endif
 	irq_enable(DT_INST_IRQN(0));
 
 	return 0;
