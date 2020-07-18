@@ -79,7 +79,7 @@ enum { GB_TYPE_MANIFEST_SET = 0x42,
 };
 
 static int getMessage(int fd, struct gb_operation_hdr **msg,
-		      const u8_t expected_msg_type);
+		      const uint8_t expected_msg_type);
 
 static int sendMessage(int fd, struct gb_operation_hdr *msg);
 
@@ -332,7 +332,7 @@ int accept_loop(void)
 }
 
 static int getMessage(int fd, struct gb_operation_hdr **msg,
-		      const u8_t expected_msg_type)
+		      const uint8_t expected_msg_type)
 {
 	int r;
 	void *tmp;
@@ -542,7 +542,7 @@ static int gb_xport_send(unsigned int cport, const void *buf, size_t len)
 		return -EINVAL;
 	}
 
-	D("%s: cport: %u, buf: %p, len: %u", clientstr, cport, buf, len);
+	//D("%s: cport: %u, buf: %p, len: %u", clientstr, cport, buf, len);
 
 	r = sendMessage(fd, msg);
 
@@ -623,7 +623,14 @@ int main(int argc, char *argv[])
  */
 
 static const gpio_pin_t green_led_pin = DT_GPIO_PIN(DT_ALIAS(led0), gpios);
-static bool green_led_direction = 1; // make it an input by default
+static bool green_led_direction;
+static struct device *green_led_dev;
+
+static void green_led_dev_init(void) {
+	if (green_led_dev == NULL) {
+		green_led_dev = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led0), gpios));
+	}
+}
 
 static uint8_t gb_gpio_sample_line_count(void)
 {
@@ -651,47 +658,43 @@ static int gb_gpio_sample_direction_in(uint8_t which)
 		return -ENODEV;
 	}
 
-	struct device *green_led_dev;
-	green_led_dev = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led0), gpios));
 	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_INPUT);
+	green_led_direction = true;
 
 	return 0;
 }
 static int gb_gpio_sample_direction_out(uint8_t which, uint8_t val)
 {
-	struct device *green_led_dev;
-
 	if (0 != which) {
 		return -ENODEV;
 	}
 
-	green_led_dev = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led0), gpios));
+	green_led_dev_init();
+
 	gpio_pin_configure(green_led_dev, green_led_pin, GPIO_OUTPUT);
 	gpio_pin_set(green_led_dev, green_led_pin, val);
+	green_led_direction = false;
 
 	return 0;
 }
 static int gb_gpio_sample_get_value(uint8_t which)
 {
-	struct device *green_led_dev;
-
 	if (0 != which) {
 		return -ENODEV;
 	}
 
-	green_led_dev = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led0), gpios));
+	green_led_dev_init();
 
 	return gpio_pin_get(green_led_dev, green_led_pin);
 }
 static int gb_gpio_sample_set_value(uint8_t which, uint8_t val)
 {
-	struct device *green_led_dev;
-
 	if (0 != which) {
 		return -ENODEV;
 	}
 
-	green_led_dev = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led0), gpios));
+	green_led_dev_init();
+
 	gpio_pin_set(green_led_dev, green_led_pin, val);
 
 	return 0;
