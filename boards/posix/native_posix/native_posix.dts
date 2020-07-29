@@ -22,6 +22,7 @@
 
 	aliases {
 		eeprom-0 = &eeprom0;
+		i2c-0 = &i2c0;
 	};
 
 	flashcontroller0: flash-controller@0 {
@@ -94,4 +95,11 @@
 		label = "ENTROPY_0";
 	};
 
+	i2c0: i2c@900 {
+		compatible = "zephyr,sim-i2c";
+		reg = <0x900 0x4>;
+		label = "I2C_0";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
