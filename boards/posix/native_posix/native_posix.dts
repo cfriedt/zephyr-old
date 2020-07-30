@@ -100,4 +100,13 @@
 		label = "COUNTER_0";
 	};
 
+
+	spi0: spi@a00 {
+		compatible = "zephyr,sim-spi";
+		reg = <0xa00 0x4>;
+		label = "SPI_0";
+		/* cs-gpios = <..gpios..>*/
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
