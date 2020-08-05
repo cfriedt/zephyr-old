@@ -14,32 +14,11 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-//LOG_MODULE_REGISTER(test_spi_sim, CONFIG_SPI_LOG_LEVEL);
-LOG_MODULE_REGISTER(test_spi_sim, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(test_spi_sim, CONFIG_SPI_LOG_LEVEL);
 
 #ifndef SPI_DEV_NAME
 #define SPI_DEV_NAME "SPI_0"
 #endif
-
-static char *to_string(uint8_t *data, size_t len)
-{
-	static char buf[65536];
-	char *p = buf;
-
-	memset(buf, '\0', sizeof(buf));
-
-	for (size_t i = 0; NULL != data && i < len && p < buf + sizeof(buf) - 4;
-	     ++i) {
-		sprintf(p, "%02x", data[i]);
-		p += 2;
-		if (i < len - 1) {
-			*p++ = ',';
-			*p++ = ' ';
-		}
-	}
-
-	return buf;
-}
 
 /* AT25 instruction set */
 typedef enum {
@@ -53,21 +32,6 @@ typedef enum {
 	AT25_EALL = 0x62, /* Erase All Sectors in Memory Array */
 	AT25_RDR = 0x15, /* Read Manufacturer and Product ID */
 } at25_op_t;
-
-static const char *at25_op_to_string(at25_op_t op) {
-	switch(op) {
-	case AT25_WRSR:  return "WRSR ";
-	case AT25_WRITE: return "WRITE";
-	case AT25_READ:  return "READ ";
-	case AT25_WRDI:  return "WRDI ";
-	case AT25_RDSR:  return "RDSR ";
-	case AT25_WREN:  return "WREN ";
-	case AT25_EONE:  return "EONE ";
-	case AT25_EALL:  return "EALL ";
-	case AT25_RDR:   return "RDR  ";
-	default:         return "     ";
-	}
-}
 
 /* AT25 status register bits */
 typedef enum {
@@ -118,12 +82,6 @@ static int spi_sim_callback(struct device *dev, const struct spi_config *config,
 			len = tx->len - 4;
 		}
 
-		LOG_DBG("%s(): %s "
-			"len: %u data: [%s] addr: %06x",
-			__func__, at25_op_to_string(op),
-			(unsigned int)len, log_strdup(to_string(x, len)),
-			addr);
-
 		memcpy(&data[addr], x, len);
 
 		write = false;
@@ -154,12 +112,6 @@ static int spi_sim_callback(struct device *dev, const struct spi_config *config,
 
 		memcpy(x, &data[addr], len);
 
-		LOG_DBG("%s(): %s "
-			"len: %u data: [%s] addr: %06x",
-			__func__, at25_op_to_string(op),
-			(unsigned int)len, log_strdup(to_string(data, len)),
-			addr);
-
 		break;
 
 	case AT25_WRDI:
@@ -171,20 +123,9 @@ static int spi_sim_callback(struct device *dev, const struct spi_config *config,
 		memcpy(rx->buf, tx->buf, sizeof(rx->len));
 		((uint8_t *)rx->buf)[1] = status;
 
-		LOG_DBG("%s(): %s "
-			"len: %u data: [%s]",
-			__func__, at25_op_to_string(op),
-			(unsigned int)rx->len, log_strdup(to_string(rx->buf, rx->len)));
-
 		break;
 
 	case AT25_WREN:
-
-		LOG_DBG("%s(): %s "
-			"len: %u data: [%s]",
-			__func__, at25_op_to_string(op),
-			(unsigned int)tx->len, log_strdup(to_string(tx->buf, tx->len)));
-
 		status |= AT25_STATUS_WEL;
 		break;
 	case AT25_EONE:
