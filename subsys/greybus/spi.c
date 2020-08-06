@@ -295,6 +295,22 @@ static int request_to_spi_config(const struct gb_spi_transfer_request *const req
  */
 static uint8_t gb_spi_protocol_transfer(struct gb_operation *operation)
 {
+    /*
+     * FIXME: This function needs to be rewritten to properly use Zephyr's
+     * SPI API. Specifically, Zephyr's API already handles batch transfers
+     * and chip selects properly, while this code does not (e.g. 'selected'
+     * only accounts for the possibility of 1 chip_select).
+     *
+     * Actually, on review, it does not seem that Zephyr's SPI API works
+     * for batched transfers when transfers might use different GPIO lines.
+     * We are forced to perform one transfer at a time until that is fixed.
+     *
+     * Will need to malloc
+     * 1) struct spi_buf[] for tx
+     * 2) struct spi_buf[] for rx
+     * 3) struct spi_cs_control[]
+     */
+
     struct gb_spi_transfer_desc *desc;
     struct gb_spi_transfer_request *request;
     struct gb_spi_transfer_response *response;
@@ -405,6 +421,7 @@ static uint8_t gb_spi_protocol_transfer(struct gb_operation *operation)
          */
         if (desc->rdwr & GB_SPI_XFER_READ) {
             read_buf += sys_le32_to_cpu(desc->len);
+            rx_buf.buf = (uint8_t *)rx_buf.buf + sys_le32_to_cpu(desc->len);
         }
 
         if (sys_le16_to_cpu(desc->delay_usecs) > 0) {

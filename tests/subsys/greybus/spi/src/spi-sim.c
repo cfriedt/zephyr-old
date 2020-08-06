@@ -7,6 +7,7 @@
 #ifdef CONFIG_SPI_SIM
 
 #include <drivers/spi.h>
+#include <drivers/gpio.h>
 #include <drivers/spi/spi_sim.h>
 #include <drivers/eeprom.h>
 #include <stdio.h>
@@ -53,6 +54,17 @@ static int spi_sim_callback(struct device *dev, const struct spi_config *config,
 	const struct spi_buf *rx;
 	uint8_t *x;
 	size_t len;
+	int r;
+
+	/* if there is a chip-select, then use it! */
+	if (config->cs != NULL) {
+		k_usleep(config->cs->delay);
+		if ((config->operation & SPI_CS_ACTIVE_HIGH) != 0) {
+			gpio_pin_set(config->cs->gpio_dev, config->cs->gpio_pin, 1);
+		} else {
+			gpio_pin_set(config->cs->gpio_dev, config->cs->gpio_pin, 0);
+		}
+	}
 
 	at25_op_t op = ((uint8_t *)tx->buf)[0] & (~0x08);
 
@@ -139,6 +151,16 @@ static int spi_sim_callback(struct device *dev, const struct spi_config *config,
 		__ASSERT(1 == 0, "invalid opcode %u", op);
 
 		break;
+	}
+
+	/* if there is a chip-select, then use it! */
+	if (config->cs != NULL) {
+		if ((config->operation & SPI_CS_ACTIVE_HIGH) != 0) {
+			gpio_pin_set(config->cs->gpio_dev, config->cs->gpio_pin, 0);
+		} else {
+			gpio_pin_set(config->cs->gpio_dev, config->cs->gpio_pin, 1);
+		}
+		k_usleep(config->cs->delay);
 	}
 
 	return 0;
