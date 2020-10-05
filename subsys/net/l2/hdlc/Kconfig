@@ -1,0 +1,8 @@
+# Copyright (c) 2016 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+config NET_L2_HDLC
+	bool "High-Level Data Link Control"
+	help
+	  This option enables support for the HDLC Layer 2 protocol
+	  which is used by PPP and others.
