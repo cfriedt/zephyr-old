@@ -34,6 +34,30 @@ LOG_MODULE_REGISTER(ieee802154_cc13xx_cc26xx);
 
 DEVICE_DECLARE(ieee802154_cc13xx_cc26xx);
 
+#ifdef CONFIG_NET_L2_IEEE802154_RADIO_TX_RETRIES
+#define TX_RETRIES CONFIG_NET_L2_IEEE802154_RADIO_TX_RETRIES
+#else
+#define TX_RETRIES 3
+#endif
+
+#ifdef CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MIN_BE
+#define CSMA_CA_MIN_BE CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MIN_BE
+#else
+#define CSMA_CA_MIN_BE 3
+#endif
+
+#ifdef CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MAX_BE
+#define CSMA_CA_MAX_BE CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MAX_BE
+#else
+#define CSMA_CA_MAX_BE 5
+#endif
+
+#ifdef CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MAX_BO
+#define CSMA_CA_MAX_BO CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MAX_BO
+#else
+#define CSMA_CA_MAX_BO 4
+#endif
+
 /* Overrides from SmartRF Studio 7 2.13.0 */
 static uint32_t overrides[] = {
 	/* DC/DC regulator: In Tx, use DCDCCTL5[3:0]=0x3 (DITHER_EN=0 and IPEAK=3). */
@@ -200,7 +224,7 @@ static int ieee802154_cc13xx_cc26xx_tx(const struct device *dev,
 {
 	struct ieee802154_cc13xx_cc26xx_data *drv_data = get_dev_data(dev);
 	bool ack = ieee802154_is_ar_flag_set(frag);
-	int retry = CONFIG_NET_L2_IEEE802154_RADIO_TX_RETRIES;
+	int retry = TX_RETRIES;
 	uint32_t status;
 
 	if (mode != IEEE802154_TX_MODE_CSMA_CA) {
@@ -662,9 +686,8 @@ static struct ieee802154_cc13xx_cc26xx_data ieee802154_cc13xx_cc26xx_data = {
 		.startTrigger.triggerType = TRIG_NOW,
 		.condition.rule = COND_STOP_ON_FALSE,
 		.randomState = 0,
-		.macMaxBE = CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MAX_BE,
-		.macMaxCSMABackoffs =
-			CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MAX_BO,
+		.macMaxBE = CSMA_CA_MAX_BE,
+		.macMaxCSMABackoffs = CSMA_CA_MAX_BO,
 		.csmaConfig = {
 			/* Initial value of CW for unslotted CSMA */
 			.initCW = 1,
@@ -674,7 +697,7 @@ static struct ieee802154_cc13xx_cc26xx_data ieee802154_cc13xx_cc26xx_data = {
 			.rxOffMode = 0,
 		},
 		.NB = 0,
-		.BE = CONFIG_NET_L2_IEEE802154_RADIO_CSMA_CA_MIN_BE,
+		.BE = CSMA_CA_MIN_BE,
 		.remainingPeriods = 0,
 		.endTrigger.triggerType = TRIG_NEVER,
 	},
@@ -732,6 +755,7 @@ static struct ieee802154_cc13xx_cc26xx_data ieee802154_cc13xx_cc26xx_data = {
 	},
 };
 
+#if defined(CONFIG_NET_L2_IEEE802154)
 NET_DEVICE_INIT(ieee802154_cc13xx_cc26xx,
 		CONFIG_IEEE802154_CC13XX_CC26XX_DRV_NAME,
 		ieee802154_cc13xx_cc26xx_init, device_pm_control_nop,
@@ -739,3 +763,10 @@ NET_DEVICE_INIT(ieee802154_cc13xx_cc26xx,
 		CONFIG_IEEE802154_CC13XX_CC26XX_INIT_PRIO,
 		&ieee802154_cc13xx_cc26xx_radio_api, IEEE802154_L2,
 		NET_L2_GET_CTX_TYPE(IEEE802154_L2), IEEE802154_MTU);
+#else
+DEVICE_AND_API_INIT(ieee802154_cc13xx_cc26xx,
+		CONFIG_IEEE802154_CC13XX_CC26XX_DRV_NAME,
+		ieee802154_cc13xx_cc26xx_init, &ieee802154_cc13xx_cc26xx_data, NULL,
+		POST_KERNEL, CONFIG_IEEE802154_CC13XX_CC26XX_INIT_PRIO,
+		&ieee802154_cc13xx_cc26xx_radio_api);
+#endif

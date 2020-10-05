@@ -1,0 +1,21 @@
+# Copyright (c) 2020 Friedt Professional Engineering Services, Inc
+# SPDX-License-Identifier: Apache-2.0
+
+description: Emulated USB Device Controller 
+
+compatible: "zephyr,usb-dc-emu"
+
+include: usb-ep.yaml
+
+properties:
+  label:
+    type: string
+    required: true
+
+  xport-type:
+    type: int
+    required: true
+
+  xport-dev:
+    type: phandle
+    required: true

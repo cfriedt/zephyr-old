@@ -27,7 +27,13 @@ LOG_MODULE_REGISTER(native_posix);
 
 #define USBIP_MAX_PACKET_SIZE	64
 
-K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE);
+#ifdef CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE
+#define STACK_SIZE CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE
+#else
+#define STACK_SIZE 2048
+#endif
+
+K_KERNEL_STACK_MEMBER(thread_stack, STACK_SIZE);
 static struct k_thread thread;
 
 static void thread_main(void *a, void *b, void *c)
@@ -108,7 +114,7 @@ int usb_dc_attach(void)
 	}
 
 	k_thread_create(&thread, thread_stack,
-			CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE,
+			STACK_SIZE,
 			thread_main, NULL, NULL, NULL,
 			K_PRIO_COOP(2), 0, K_NO_WAIT);
 

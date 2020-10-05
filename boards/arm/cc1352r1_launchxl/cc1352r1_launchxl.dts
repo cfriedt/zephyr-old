@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include <ti/cc1352r.dtsi>
-#include "boosterpack_connector.dtsi"
+//#include "boosterpack_connector.dtsi"
 
 /*
  * Define some constants from driverlib/ioc.h in TI HAL,
@@ -15,6 +15,8 @@
  */
 #define IOC_PORT_MCU_UART0_TX 0x00000010
 #define IOC_PORT_MCU_UART0_RX 0x0000000F
+#define IOC_PORT_MCU_UART1_TX 0x00000014
+#define IOC_PORT_MCU_UART1_RX 0x00000013
 
 #define BTN_GPIO_FLAGS (GPIO_ACTIVE_LOW | GPIO_PULL_UP)
 
@@ -80,12 +82,20 @@
 	rx-pin = <12 IOC_PORT_MCU_UART0_RX>;
 };
 
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	tx-pin = <9 IOC_PORT_MCU_UART1_TX>;
+	rx-pin = <8 IOC_PORT_MCU_UART1_RX>;
+};
+
 &i2c0 {
 	status = "okay";
 	scl-pin = <4>;
 	sda-pin = <5>;
 };
 
+/*
 &spi0 {
 	status = "okay";
 	sck-pin = <10>;
@@ -94,6 +104,7 @@
 	cs-pin = <11>;
 	cs-gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
 };
+*/
 
 &rtc {
 	status = "okay";

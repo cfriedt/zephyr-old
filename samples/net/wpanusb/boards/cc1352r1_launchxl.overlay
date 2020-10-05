@@ -1,0 +1,19 @@
+/*
+ * Copyright (c) 2020 Friedt Professional Engineering Services, Inc
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/ {
+	usbdc0 {
+		label = "USB_0";
+		compatible = "zephyr,usb-dc-emu";
+		/* endpoint 0 in / out */
+		num-bidir-endpoints = <1>;
+		/* endpoint 1 in */
+		num-in-endpoints = <2>;
+		num-out-endpoints = <1>;
+		
+		xport-type = <0>;
+		xport-dev = <&uart1>;
+	};
+};
