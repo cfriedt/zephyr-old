@@ -1,0 +1,5 @@
+common:
+  tags: net hdlc
+tests:
+  net.hdlc:
+    min_ram: 20
