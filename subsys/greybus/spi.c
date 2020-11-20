@@ -419,7 +419,7 @@ static uint8_t gb_spi_protocol_transfer(struct gb_operation *operation)
         }
 
         if (sys_le16_to_cpu(desc->delay_usecs) > 0) {
-            usleep(sys_le16_to_cpu(desc->delay_usecs));
+            k_usleep(sys_le16_to_cpu(desc->delay_usecs));
         }
 
         /* if cs_change enable, change the chip-select pin signal */
