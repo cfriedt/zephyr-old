@@ -12,7 +12,7 @@
 #include <string.h>
 #include <zephyr.h>
 
-#define LOG_LEVEL CONFIG_GB_LOG_LEVEL
+#define LOG_LEVEL CONFIG_GREYBUS_LOG_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(greybus_platform);
 

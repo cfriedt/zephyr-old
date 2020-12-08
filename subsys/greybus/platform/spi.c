@@ -9,7 +9,7 @@
 #define DT_DRV_COMPAT zephyr_greybus_spi_controller
 #include <device.h>
 
-#define LOG_LEVEL CONFIG_GB_LOG_LEVEL
+#define LOG_LEVEL CONFIG_GREYBUS_LOG_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(greybus_platform_spi_control);
 
@@ -168,11 +168,6 @@ static int greybus_spi_control_init(struct device *dev) {
 		config->bundle, CPORT_PROTOCOL_SPI);
 
     return 0;
-}
-
-extern int gb_service_defer_init(struct device *, int (*init)(struct device *));
-static int defer_greybus_spi_control_init(struct device *dev) {
-	return gb_service_defer_init(dev, &greybus_spi_control_init);
 }
 
 static int gb_plat_api_controller_config_response(struct device *dev, struct gb_spi_master_config_response *rsp)
@@ -337,10 +332,10 @@ static const struct gb_platform_spi_api gb_platform_spi_api = {
 			greybus_spi_control_data_##_num;									\
         																		\
         DEVICE_AND_API_INIT(spi_spi_control_##_num, "GBSPI_" #_num,					\
-                            defer_greybus_spi_control_init,					\
+                            greybus_spi_control_init,					\
 							&greybus_spi_control_data_##_num,					\
                             &greybus_spi_control_config_##_num, POST_KERNEL,	\
-                            CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
+                            Z_GREYBUS_CPORT_PRIORITY, \
               &gb_platform_spi_api);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_GREYBUS_SPI_CONTROL);

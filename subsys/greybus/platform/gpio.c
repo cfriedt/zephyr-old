@@ -9,7 +9,7 @@
 #define DT_DRV_COMPAT zephyr_greybus_gpio_controller
 #include <device.h>
 
-#define LOG_LEVEL CONFIG_GB_LOG_LEVEL
+#define LOG_LEVEL CONFIG_GREYBUS_LOG_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(greybus_platform_gpio_control);
 
@@ -138,11 +138,6 @@ static int greybus_gpio_control_init(struct device *dev) {
     return 0;
 }
 
-extern int gb_service_defer_init(struct device *, int (*init)(struct device *));
-static int defer_greybus_gpio_control_init(struct device *dev) {
-	return gb_service_defer_init(dev, &greybus_gpio_control_init);
-}
-
 #define DEFINE_GREYBUS_GPIO_CONTROL(_num)										\
 																				\
 		BUILD_ASSERT(DT_PROP(DT_PARENT(DT_DRV_INST(_num)), bundle_class)		\
@@ -166,9 +161,9 @@ static int defer_greybus_gpio_control_init(struct device *dev) {
 			greybus_gpio_control_data_##_num;									\
         																		\
         DEVICE_INIT(gpio_gpio_control_##_num, "GBGPIO_" #_num,					\
-                            defer_greybus_gpio_control_init,					\
+                            greybus_gpio_control_init,					\
 							&greybus_gpio_control_data_##_num,					\
                             &greybus_gpio_control_config_##_num, POST_KERNEL,	\
-                            CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
+                            Z_GREYBUS_CPORT_PRIORITY);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_GREYBUS_GPIO_CONTROL);

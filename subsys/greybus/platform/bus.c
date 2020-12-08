@@ -5,7 +5,7 @@
 #define DT_DRV_COMPAT zephyr_greybus
 #include <device.h>
 
-#define LOG_LEVEL CONFIG_GB_LOG_LEVEL
+#define LOG_LEVEL CONFIG_GREYBUS_LOG_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(greybus_platform_bus);
 
@@ -136,7 +136,7 @@ static const struct greybus_platform_api platform_api = {
 			"GREYBUS_" #_num,							\
 			greybus_init, &greybus_data_##_num,			\
 			&greybus_config_##_num, POST_KERNEL,		\
-			CONFIG_KERNEL_INIT_PRIORITY_DEVICE,			\
+			Z_GREYBUS_SERVICE_PRIORITY,			\
 			&platform_api);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_GREYBUS);

@@ -9,6 +9,13 @@
 
 #include <greybus/manifecto/manifest.h>
 
+/* To ensure greybus device initialization order */
+#define Z_GREYBUS_SERVICE_PRIORITY 91
+#define Z_GREYBUS_STRING_PRIORITY 92
+#define Z_GREYBUS_INTERFACE_PRIORITY 93
+#define Z_GREYBUS_BUNDLE_PRIORITY 94
+#define Z_GREYBUS_CPORT_PRIORITY 95
+
 #ifdef __cplusplus
 extern "C" {
 #endif

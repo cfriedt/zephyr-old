@@ -4,7 +4,7 @@
 #define DT_DRV_COMPAT zephyr_greybus_string
 #include <device.h>
 
-#define LOG_LEVEL CONFIG_GB_LOG_LEVEL
+#define LOG_LEVEL CONFIG_GREYBUS_LOG_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(greybus_platform_string);
 
@@ -47,11 +47,6 @@ static int greybus_string_init(struct device *dev) {
     return 0;
 }
 
-extern int gb_service_defer_init(struct device *, int (*init)(struct device *));
-static int defer_greybus_string_init(struct device *dev) {
-	return gb_service_defer_init(dev, &greybus_string_init);
-}
-
 #define DEFINE_GREYBUS_STRING(_num)                                     \
 																		\
         static const struct greybus_string_config 						\
@@ -63,8 +58,8 @@ static int defer_greybus_string_init(struct device *dev) {
         };                                                              \
                                                                         \
         DEVICE_INIT(greybus_string_##_num, "GBSTRING_" #_num,			\
-        		defer_greybus_string_init, NULL,               	\
+        		greybus_string_init, NULL,               	\
                             &greybus_string_config_##_num, POST_KERNEL,	\
-                            CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
+                            Z_GREYBUS_STRING_PRIORITY);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_GREYBUS_STRING);

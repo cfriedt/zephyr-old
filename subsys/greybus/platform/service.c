@@ -8,8 +8,7 @@
 #include <stdlib.h>
 #include <zephyr.h>
 
-//#define LOG_LEVEL CONFIG_GB_LOG_LEVEL
-#define LOG_LEVEL LOG_LEVEL_DBG
+#define LOG_LEVEL CONFIG_GREYBUS_LOG_LEVEL
 #include <logging/log.h>
 LOG_MODULE_REGISTER(greybus_service);
 
@@ -17,9 +16,6 @@ LOG_MODULE_REGISTER(greybus_service);
 
 /* Currently only one greybus instance is supported */
 #define GREYBUS_BUS_NAME "GREYBUS_0"
-
-/* Deferred init of some DT nodes required - see defer_init.c */
-extern int gb_service_deferred_init(void);
 
 static struct gb_transport_backend *xport;
 static size_t num_cports;
@@ -43,13 +39,11 @@ int greybus_service_init(struct device *bus)
 	size_t mnfb_size;
     unsigned int *cports = NULL;
 
-    LOG_DBG("Greybus initializing..");
+    if (xport != NULL) {
+    	return -EALREADY;
+    }
 
-	r = gb_service_deferred_init();
-	if (r < 0) {
-		LOG_ERR("gb_service_deferred_init() failed: %d", r);
-		goto out;
-	}
+    LOG_DBG("Greybus initializing..");
 
 	bus = device_get_binding(GREYBUS_BUS_NAME);
 	if (NULL == bus) {
@@ -129,4 +123,5 @@ out:
     return r;
 }
 
-//SYS_INIT(greybus_service_init, POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY);
+SYS_INIT(greybus_service_init, APPLICATION,
+         CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
